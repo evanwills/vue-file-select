@@ -1,0 +1,73 @@
+@layer components {
+  .msf-full-bleed {
+    @apply relative before:content-[''] before:absolute before:w-[100rem] before:left-[-100rem] before:top-0 before:bottom-0 before:bg-inherit after:content-[''] after:absolute after:w-[100rem] after:right-[-100rem] after:top-0 after:bottom-0 after:bg-inherit;
+  }
+
+  /**
+   * This class is here because, for some unknown reason, Tailwind is
+   * forcing the `::after` content to always be an empty string.
+   */
+  .link-button::after,
+  .image-tile__more::after {
+    content: 'east' !important;
+  }
+
+  /**
+   * This class is here because tailwind does not do nested selectors
+   * and I need a nested selector because the link the hover is on is
+   * an ancestor of the element being translated.
+   */
+  .image-tile:hover .image-tile__more::after {
+    transform: translateX(0.25rem) !important;
+  }
+
+  .status-info {
+    @apply bg-purple-50 text-purple-700 *:text-purple-700;
+  }
+  .status-info-border {
+    @apply status-info border-purple-500;
+  }
+  .notice-info {
+    @apply status-info border-l-4 border-l-purple-500 *:border-l-0;
+  }
+
+  .status-success {
+    @apply bg-green-50 text-green-700 *:text-green-700;
+  }
+  .status-success-border {
+    @apply status-success border-green-700;
+  }
+  .notice-success {
+    @apply status-success border-l-4 border-l-green-700 *:border-l-0;
+  }
+
+  .status-warning {
+    @apply bg-sand-50 text-sand-700 *:text-sand-700
+  }
+  .status-warning-border {
+    @apply status-warning border-sand-500;
+  }
+  .notice-warning {
+    @apply status-warning border-l-4 border-l-sand-500 *:border-l-0;
+  }
+
+  .status-error {
+    @apply bg-red-50 text-red-700 *:text-red-700;
+  }
+  .status-error-border {
+    @apply status-error border-red-500;
+  }
+  .notice-error {
+    @apply status-error border-l-4 border-l-red-500 *:border-l-0;
+  }
+
+  .status-brand, .status-notice {
+    @apply bg-sky-50 text-sky-700 *:text-sky-700;
+  }
+  .status-brand-border, .status-notice-border {
+    @apply status-brand border-blue-500;
+  }
+  .notice-brand {
+    @apply status-brand border-l-4 border-l-blue-500 *:border-l-0;
+  }
+}

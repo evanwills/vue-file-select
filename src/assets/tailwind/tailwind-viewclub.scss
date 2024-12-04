@@ -1,0 +1,33 @@
+@import "tailwindcss/base";
+@import "tailwindcss/utilities";
+@import "tailwindcss/components";
+@import "./buttons.scss";
+@import "./grids.scss";
+@import "./inputs.scss";
+@import "./typography.scss";
+
+@layer components {
+    .btn-pri,
+    .btn-generic {
+        @apply
+        !bg-teal-500 
+        hover:!bg-teal-700 
+        active:!bg-teal-700 
+        focus:!bg-teal-500 focus:!outline-teal-500;
+    }
+
+    .btn-sec,
+    .btn-generic-sec {
+        @apply text-teal-500 !border-teal-500
+        hover:!bg-teal-100 
+        active:!bg-teal-50
+        focus:!bg-teal-100 focus:!outline-teal-500;
+    }
+
+    .btn-ter {
+        @apply text-teal-500
+        hover:!bg-teal-100 
+        active:!bg-teal-50 
+        focus:!bg-teal-100 focus:!outline-teal-500;
+    }
+}

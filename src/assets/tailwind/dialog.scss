@@ -1,0 +1,12 @@
+@layer components {
+  .tsf-dialog-modal {
+    @apply box-border py-8 px-6;
+    max-height: calc(100% - 2rem);
+    max-width: 25.5rem;
+    width: calc(100% - 2rem);
+  }
+
+  .tsf-dialog-modal::backdrop {
+    background-color: var(--bg-overlay, rgba(27, 24, 30, 0.80));
+  }
+}

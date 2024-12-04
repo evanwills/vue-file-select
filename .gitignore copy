@@ -1,0 +1,58 @@
+.DS_Store
+node_modules
+package-lock.json
+/dist
+tmp/*
+*.bak
+*.tsf-starters
+*.vite-running
+*.dev.*
+*.master.*
+*.new.*
+*.old.*
+*.original.*
+*.sit.*
+*.tmp.*
+.vite
+
+# Files that contain secure info
+.ftp-auth.txt
+
+# local env files
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace
+
+# Miscellaneous local dev helper files
+build-fix*
+build-zips
+compareWithLocalMock.sh
+compareWithInit.sh
+
+public/-/media/site/Family-Portal/
+public/images/
+
+rm
+src/mock-data/json/children/tom.json
+sitecore/
+*tafeStudent.json
+*testFamily.json
+tmp.sh
+
+public/css/tailwind.css
+src/assets/tailwind.css
