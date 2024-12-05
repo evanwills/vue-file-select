@@ -1,5 +1,9 @@
 import mimeTypes from './mimeTypes';
 
+export const dummyDispatch = (_eventName, _data) => {};
+
+export const cloneFileDataItem = (file) => ({ ...file });
+
 /**
  * Get list of allowed file types separated list of file extensions
  *
