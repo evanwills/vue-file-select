@@ -3,9 +3,11 @@ import {
   cloneFileDataItem,
   dummyDispatch,
   getAllowedTypes,
+  getEventTypes,
   getUniqueFileName,
   humanFileSizeToBytes,
   isValidFileType,
+  resetPos,
 } from './file-select-utils';
 import { isObj } from '../../utils/data-utils';
 
@@ -161,7 +163,7 @@ import { isObj } from '../../utils/data-utils';
  * @returns
  */
 
-// START: Local type definitions
+//  END:  Local type definitions
 // ==================================================================
 
 /**
@@ -180,40 +182,65 @@ import { isObj } from '../../utils/data-utils';
  * @method processFiles Process file(s) provided by
  *                      `<input type="file" />` and add them to the
  *                      list of files a user wants to update.
- * @method moveFile     Change the relative position of a file within
- *                      the list of files that the user has selected
+ * @method clean        Remove bad files AND (optionally) there are
+ *                      too many files, remove suplus files plus, if
+ *                      the total upload size is too large remove
+ *                      the last file, until the upload size is below
+ *                      the maximum allowed.
  * @method deleteFile   Remove a file from the list of files selected
  *                      by the user
+ * @method moveFile     Change the relative position of a file within
+ *                      the list of files that the user has selected
  * @method getFileList  Get a list of files (as would be created by
  *                      `<input type="file" />`) that could be added
  *                      to a `FormData` object and returned to a
  *                       server
  * @method getFormData  Get a FormData object that can be returned to
  *                      the server
- * @method getStatus    Get some basic data about the current state
- *                      of FileSelectData
+ *
+ * @method badFileCount The number of bad files in the list
+ * @method eventTypes   Get an object keyed on event name and
+ *                      containing the data type provided with the
+ *                      event and a description of when the event is
+ *                      called and why.
  * @method filesInProcess Get a count of the number of files
  *                      currently being processed (Most of the time
  *                      this will be zero)
- * @method getGoodFiles Get a list of only the good files (and
- *                      metadata)
- * @method getBadFiles  Get a list of only the bad files (and
- *                      metadata)
  * @method getAllFiles  Get a list of files (and metadata) held by
  *                      this instance of FileSelectData
- * @method goodFileCount The number of files that are safe to upload
- * @method badFileCount The number of bad files in the list
+ * @method getBadFiles  Get a list of only the bad files (and
+ *                      metadata)
  * @method getFileCount Get the number of files in this instance
- * @method hasFiles     Whether or not there are any files in this
- *                      instance
+ * @method getGoodFiles Get a list of only the good files (and
+ *                      metadata)
+ * @method getStatus    Get some basic data about the current state
+ *                      of FileSelectData
+ * @method goodFileCount The number of files that are safe to upload
  * @method hasBadFiles  Whether or not there are issues with any
  *                      individual files the user has selected
+ * @method hasFiles     Whether or not there are any files in this
+ *                      instance
  * @method hasGoodFiles Whether or not there are any files that are
  *                      OK to be uploaded
- * @method tooMany      Whether or not there are too many files
- *                      already added to the list
+ * @method isProcessing Whether or not images are still being
+ *                      processed
+ * @method maxFiles     Get the maximum number of files allowed
+ * @method maxPx        Get the maximum pixel count (in either
+ *                      direction) currently allowed for images
+ * @method maxSingleSize Get the maximum byte size allowed for a
+ *                      single file
+ * @method maxTotalSize Get the maximum total byte size allowed for
+ *                      all files
+ * @method noResize     Get the no resize state
+ * @method ok           Whether or not it would be OK to upload the
+ *                      selected files as is
+ * @method omitInvalid  Get the omit invalid state
  * @method tooBig       Whether or not the total size of selected
  *                      files is larger than the maximum allowed
+ * @method tooMany      Whether or not there are too many files
+ *                      already added to the list
+ * @method totalSize    Get the total size in bytes for all the files
+ *                      in the list
  */
 export class FileSelectData {
   static #imgResize = null;
@@ -465,42 +492,14 @@ export class FileSelectData {
    */
   static getNoResize () { return this.#noResize; }
 
-  static getEventTypes () {
-    return {
-      'allcomplete': {
-        dataType: 'boolean',
-        description: 'Emitted when work on a single file is complete. Data will only be `TRUE` if there are no more files yet to complete processing.',
-      },
-      'complete': {
-        dataType: 'AllCompleteEventData',
-        description: 'Emitted when work on a single file is complete.',
-      },
-      'toomany': {
-        dataType: 'ToomanyEventData',
-        description: 'Emitted when work on a single file is complete but the total number of files selected is greater than allowed',
-      },
-      'toobig': {
-        dataType: 'ToobigEventData',
-        description: 'Emitted when work on a single file is complete but combined size of all the files is larger than allowed',
-      },
-      'oversize': {
-        dataType: 'OversizeEventData',
-        description: 'Emitted when work on a single file is complete but that file is larger than allowed for a single file',
-      },
-      'invalid': {
-        dataType: 'InvalidEventData',
-        description: 'Emitted when work on a single file is complete but the type of that file is not in the allowed list.',
-      },
-      'processing': {
-        dataType: 'string',
-        description: 'Emitted when work starts on file named in the data.',
-      },
-      'processcount': {
-        dataType: 'number',
-        description: 'Emitted when work starts on a batch of files',
-      },
-    }
-  }
+  /**
+   * Get an object keyed on event name and containing the data type
+   * provided with the event and a description of when the event is
+   * called and why.
+   *
+   * @returns {object}
+   */
+  static getEventTypes () { return getEventTypes(); }
 
   //  END:  Static methods
   // ----------------------------------------------------------------
@@ -541,8 +540,7 @@ export class FileSelectData {
     // upload size AND the maximum upload count OR we don't care
     // about invalid files
     if (FileSelectData.#omitInvalid === false
-      || (this.#totalSize <= FileSelectData.#maxTotalSize
-      && this.#fileList.length < FileSelectData.#maxFileCount)
+      || (this.tooBig() === false && this.tooMany() === false)
     ) {
       file.position = this.#fileList.length; // eslint-disable-line no-param-reassign
       this.#fileList.push(file);
@@ -566,7 +564,7 @@ export class FileSelectData {
 
     this.#totalSize = sum;
 
-    if (this.#totalSize > FileSelectData.#maxTotalSize) {
+    if (this.tooBig() === true) {
       this.#dispatch(
         'toobig',
         {
@@ -600,6 +598,19 @@ export class FileSelectData {
     return true;
   }
 
+  #checkTooMany (name) {
+    if (this.tooMany()) {
+      this.#dispatch(
+        'toomany',
+        {
+          name,
+          count: this.#fileList.length,
+          max: FileSelectData.#maxFileCount,
+        },
+      );
+    }
+  }
+
   /**
    *
    * @param {FileDataItem} file File data object currently being
@@ -613,17 +624,7 @@ export class FileSelectData {
     this.#processing -= inc;
     this.#dispatch('complete', { name: file.name, pos: file.position });
 
-    if (context.#fileList.length > FileSelectData.#maxFileCount) {
-      this.#dispatch(
-        'toomany',
-        {
-          name: file.name,
-          count: this.#fileList.length,
-          max: FileSelectData.#maxFileCount,
-        },
-      );
-    }
-
+    this.#checkTooMany(file.name);
     this.#calculateTotal();
     this.#dispatch('allcomplete', (this.#processing === 0));
   }
@@ -762,90 +763,117 @@ export class FileSelectData {
   // START: Public getter methods
 
   /**
+   * The number of bad files in the list
+   *
+   * @returns {number}
+   */
+  badFileCount () { return this.getFileCount(false); }
+
+  /**
+   * Get an object keyed on event name and containing the data type
+   * provided with the event and a description of when the event is
+   * called and why.
+   *
+   * @returns {object}
+   */
+  eventTypes () { return getEventTypes(); }
+
+  /**
+   * Get a list of files (and metadata) held by this instance of
+   * FileSelectData
+   *
+   * @param {boolean|null} onlyGood If `NULL`, all files are returned
+   *                                If `TRUE`, all bad files are
+   *                                excluded.
+   *                                If `FALSE` only bad files are
+   *                                included
+   *
+   * @returns {FileDataItem[]}
+   */
+  getAllFiles (onlyGood = null) {
+    if (onlyGood === null) {
+      return this.#fileList.map(cloneFileDataItem);
+    }
+
+    return this.#fileList.filter((file) => (file.ok === onlyGood))
+      .map(cloneFileDataItem);
+  }
+
+  /**
+   * Get a list of only the bad files (and metadata)
+   *
+   * @returns {FileDataItem[]}
+   */
+  getBadFiles () { return this.getAllFiles(false); }
+
+  /**
    * Get the dispatcher function being used in this instance
    *
    * @returns {Dispatcher}
    */
   getDispatch () { return this.#dispatch; }
 
-
-  maxFiles () { return FileSelectData.#maxFileCount; }
-
   /**
-   * Get the maximum byte size allowed for a single file
+   * Get the number of files in this instance
    *
-   * @returns {number}
+   * @param {boolean|null} onlyGood If `NULL`, all files are counted
+   *                                If `TRUE`, all bad files are
+   *                                excluded from count.
+   *                                If `FALSE` only bad files are
+   *                                included in count.
+   *
+   * @returns {FileDataItem[]}
    */
-  maxSingleSize () { return FileSelectData.#maxSingleSize; }
+  getFileCount (onlyGood = null) {
+    if (onlyGood === null) {
+      return this.#fileList.length;
+    }
 
-  /**
-   * Get the maximum total byte size allowed for all files
-   *
-   * @returns {number}
-   */
-  maxTotalSize () { return FileSelectData.#maxTotalSize; }
+    let output = 0;
+    for (const file of this.#fileList) {
+      if (file.ok === onlyGood) {
+        output += 1;
+      }
+    }
 
-  /**
-   * Get the maximum pixel count (in either direction) currently
-   * allowed for images
-   *
-   * @returns {number}
-   */
-  maxPx () { return FileSelectData.#maxImgPx; }
-
-  /**
-   * Get the omit invalid state
-   *
-   * @returns {boolean}
-   */
-  omitInvalid() { return FileSelectData.#omitInvalid; }
-
-  /**
-   * Get the no resize state
-   *
-   * @returns {boolean}
-   */
-  noResize () { return FileSelectData.#noResize; }
-
-  /**
-   * Get the total size in bytes for all the files in the list
-   *
-   * @returns {number}
-   */
-  totalSize () { return this.#totalSize; }
-
-  /**
-   * Get the total number of files in the files in the list
-   *
-   * @returns {number}
-   */
-  fileCount () { return this.#fileList.length; }
-
-  /**
-   * Whether or not images are still being processed
-   *
-   * @returns {boolean}
-   */
-  isProcessing () { return this.#processing > 0; }
-
-  /**
-   * Whether or not there are already too many files selected
-   *
-   * @returns {boolean}
-   */
-  tooMany () {
-    return (this.#fileList.length > FileSelectData.#maxFileCount);
+    return output;
   }
 
   /**
-   * Whether or not the total size of selected files is larger than
-   * the maximum allowed
+   * Get a list of only the good files (and metadata)
    *
-   * @returns {boolean}
+   * @returns {FileDataItem[]}
    */
-  tooBig () {
-    return (this.#totalSize > FileSelectData.#maxTotalSize);
+  getGoodFiles () { return this.getAllFiles(true); }
+
+  /**
+   * Get some basic data about the current state of FileSelectData
+   *
+   * @returns {Object}
+   */
+  getStatus () {
+    const tooMany = this.tooMany();
+    const tooBig = this.tooBig();
+    const badFiles = this.badFileCount();
+    const ok = (tooBig === false && tooMany === false && badFiles > 0);
+
+    return {
+      ok,
+      tooMany,
+      tooBig,
+      badFiles,
+      count: this.#fileList.length,
+      size: this.#totalSize,
+      processing: this.#processing,
+    };
   }
+
+  /**
+   * The number of files that are safe to upload
+   *
+   * @returns {number}
+   */
+  goodFileCount () { return this.getFileCount(true); }
 
   /**
    * Whether or not there are any files in this instance
@@ -878,127 +906,164 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  hasBadFiles () {
-    return this.hasFiles(false);
-  }
+  hasBadFiles () { return this.hasFiles(false); }
 
   /**
    * Whether or not there are any files that are OK to be uploaded
    *
    * @returns {boolean}
    */
-  hasGoodFiles () {
-    return this.hasFiles(true);
-  }
+  hasGoodFiles () { return this.hasFiles(true); }
 
   /**
-   * Get the number of files in this instance
+   * Whether or not images are still being processed
    *
-   * @param {boolean|null} onlyGood If `NULL`, all files are counted
-   *                                If `TRUE`, all bad files are
-   *                                excluded from count.
-   *                                If `FALSE` only bad files are
-   *                                included in count.
-   *
-   * @returns {FileDataItem[]}
+   * @returns {boolean}
    */
-  getFileCount (onlyGood = null) {
-    if (onlyGood === null) {
-      return this.#fileList.length;
-    }
-
-    let output = 0;
-    for (const file of this.#fileList) {
-      if (file.ok === onlyGood) {
-        output += 1;
-      }
-    }
-
-    return output;
-  }
+  isProcessing () { return this.#processing > 0; }
 
   /**
-   * The number of bad files in the list
+   * Get the maximum number of files allowed
    *
    * @returns {number}
    */
-  badFileCount () {
-    return this.getFileCount(false);
-  }
+  maxFiles () { return FileSelectData.#maxFileCount; }
 
   /**
-   * The number of files that are safe to upload
+   * Get the maximum pixel count (in either direction) currently
+   * allowed for images
    *
    * @returns {number}
    */
-  goodFileCount () {
-    return this.getFileCount(true);
+  maxPx () { return FileSelectData.#maxImgPx; }
+
+  /**
+   * Get the maximum byte size allowed for a single file
+   *
+   * @returns {number}
+   */
+  maxSingleSize () { return FileSelectData.#maxSingleSize; }
+
+  /**
+   * Get the maximum total byte size allowed for all files
+   *
+   * @returns {number}
+   */
+  maxTotalSize () { return FileSelectData.#maxTotalSize; }
+
+  /**
+   * Get the no resize state
+   *
+   * @returns {boolean}
+   */
+  noResize () { return FileSelectData.#noResize; }
+
+  /**
+   * Whether or not it would be OK to upload the selected files as is
+   *
+   * @returns {boolean}
+   */
+  ok () {
+    return (this.tooBig() === false
+      && this.tooMany() === false
+      && this.hasBadFiles() === false
+      && this.#fileList.length > 0);
   }
 
   /**
-   * Get a list of files (and metadata) held by this instance of
-   * FileSelectData
+   * Get the omit invalid state
    *
-   * @param {boolean|null} onlyGood If `NULL`, all files are returned
-   *                                If `TRUE`, all bad files are
-   *                                excluded.
-   *                                If `FALSE` only bad files are
-   *                                included
-   *
-   * @returns {FileDataItem[]}
+   * @returns {boolean}
    */
-  getAllFiles (onlyGood = null) {
-    if (onlyGood === null) {
-      return this.#fileList.map(cloneFileDataItem);
-    }
+  omitInvalid() { return FileSelectData.#omitInvalid; }
 
-    return this.#fileList.filter((file) => (file.ok === onlyGood))
-      .map(cloneFileDataItem);
+  /**
+   * Whether or not the total size of selected files is larger than
+   * the maximum allowed
+   *
+   * @returns {boolean}
+   */
+  tooBig () {
+    return (this.#totalSize > FileSelectData.#maxTotalSize);
   }
 
   /**
-   * Get a list of only the bad files (and metadata)
+   * Whether or not there are already too many files selected
    *
-   * @returns {FileDataItem[]}
+   * @returns {boolean}
    */
-  getBadFiles () {
-    return this.getAllFiles(false);
+  tooMany () {
+    return (this.#fileList.length > FileSelectData.#maxFileCount);
   }
 
   /**
-   * Get a list of only the good files (and metadata)
+   * Get the total size in bytes for all the files in the list
    *
-   * @returns {FileDataItem[]}
+   * @returns {number}
    */
-  getGoodFiles () {
-    return this.getAllFiles(true);
-  }
-
-  /**
-   * Get some basic data about the current state of FileSelectData
-   *
-   * @returns {Object}
-   */
-  getStatus () {
-    const tooMany = this.tooMany();
-    const tooBig = this.tooBig();
-    const badFiles = this.badFileCount();
-    const ok = (tooBig === false && tooMany === false && badFiles > 0);
-
-    return {
-      ok,
-      tooMany,
-      tooBig,
-      badFiles,
-      count: this.#fileList.length,
-      size: this.#totalSize,
-      processing: this.#processing,
-    };
-  }
+  totalSize () { return this.#totalSize; }
 
   //  END:  Public getter methods
   // ----------------------------------------------------------------
   // START: General public methods
+
+  /**
+   * Remove bad files AND (optionally) there are too many files,
+   * remove suplus files plus, if the total upload size is too large
+   * remove the last file, until the upload size is below the
+   * maximum allowed.
+   *
+   * @param {boolean} deleteExcess Whether or not to delete files
+   *                               that cause `FileSelectDatatooBig()`
+   *                               or `FileSelectData.tooMany()` to
+   *                               be `TRUE`
+   *
+   * @returns {true}
+   */
+  clean (deleteExcess = false) {
+    this.#fileList = this.#fileList.filter((file) => file.ok === true);
+
+    // Update the total upload size
+    this.#calculateTotal();
+
+    if (deleteExcess !== true) {
+      return true;
+    }
+
+    if (this.tooMany()) {
+      const diff = this.#fileList.length - FileSelectData.#maxFileCount;
+      this.#fileList = this.#fileList.splice(FileSelectData.#maxFileCount - 1, diff);
+    }
+
+    if (this.tooBig() === true) {
+      for (let a = this.#fileList.length - 1; a >= 0; a -= 1) {
+        this.#fileList.pop();
+
+        this.#calculateTotal();
+        if (this.tooBig() === false) {
+          return true;
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove a file from the list of files selected by the user
+   *
+   * @param {string} name
+   *
+   * @returns {boolean} TRUE if file was deleted. FALSE otherwise
+   */
+  deleteFile (name) {
+    const l = this.fileList.length;
+
+    this.fileList = this.fileList.filter((file) => (file.name !== name)).map(resetPos);
+
+    this.#calculateTotal();
+    this.#checkTooMany(name);
+
+    return (this.fileList.length < l);
+  }
 
   /**
    * Process file(s) provided by `<input type="file" />` and add them
@@ -1074,29 +1139,12 @@ export class FileSelectData {
         this.fileList.splice(from, 1);
         this.fileList.splice(to, 0, item);
 
-        for (let b = from; b < to; b += 1) {
-          this.fileList[b].position = b;
-        }
+        this.fileList = this.#fileList.map(resetPos);
         return true;
       }
     }
 
     return false;
-  }
-
-  /**
-   * Remove a file from the list of files selected by the user
-   *
-   * @param {string} name
-   *
-   * @returns {boolean} TRUE if file was deleted. FALSE otherwise
-   */
-  deleteFile (name) {
-    const l = this.fileList.length;
-
-    this.fileList = this.fileList.filter((file) => (file.name !== name));
-
-    return (this.fileList.length < l);
   }
 
   /**

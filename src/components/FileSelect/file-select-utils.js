@@ -65,6 +65,11 @@ export const getAllowedTypes = (types) => {
   return output;
 };
 
+export const resetPos = (file, index) => {
+  file.pos = index;
+  return file;
+};
+
 /**
  * Get the file size metadata of a file (based on the supplied file
  * sise in bytes)
@@ -188,4 +193,53 @@ export const getUniqueFileName = (file) => {
   const bits = file[key].split('.', 2);
 
   return `${bits[0]}_${Date.now()}.${bits[1]}`;
+};
+
+export const getEventTypes = () => {
+  return {
+    'allcomplete': {
+      dataType: 'boolean',
+      description: 'Emitted when work on a single file is '
+        + 'complete. Data will only be `TRUE` if there are no '
+        + 'more files yet to complete processing.',
+    },
+    'complete': {
+      dataType: 'AllCompleteEventData',
+      description: 'Emitted when work on a single file is '
+        + 'complete.',
+    },
+    'toomany': {
+      dataType: 'ToomanyEventData',
+      description: 'Emitted when work on a single file is '
+        + 'complete but the total number of files selected is '
+        + 'greater than allowed',
+    },
+    'toobig': {
+      dataType: 'ToobigEventData',
+      description: 'Emitted when work on a single file is '
+        + 'complete but combined size of all the files is larger '
+        + 'than allowed',
+    },
+    'oversize': {
+      dataType: 'OversizeEventData',
+      description: 'Emitted when work on a single file is '
+        + 'complete but that file is larger than allowed for a '
+        + 'single file',
+    },
+    'invalid': {
+      dataType: 'InvalidEventData',
+      description: 'Emitted when work on a single file is '
+        + 'complete but the type of that file is not in the '
+        + 'allowed list.',
+    },
+    'processing': {
+      dataType: 'string',
+      description: 'Emitted when work starts on file named in '
+        + 'the data.',
+    },
+    'processcount': {
+      dataType: 'number',
+      description: 'Emitted when work starts on a batch of files',
+    },
+  }
 };
