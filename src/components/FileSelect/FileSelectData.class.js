@@ -4,10 +4,16 @@ import {
   dummyDispatch,
   getAllowedTypes,
   getEventTypes,
+  getRightConfigValidateFunc,
   getUniqueFileName,
-  humanFileSizeToBytes,
+  getValidMaxFileCount,
+  getValidMaxImgPx,
+  getValidMaxSingleSize,
+  getValidMaxTotalSize,
   isValidFileType,
   resetPos,
+  rewriteConfigError,
+  rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../utils/data-utils';
 
@@ -171,13 +177,14 @@ import { isObj } from '../../utils/data-utils';
  * for upload to a server.
  *
  * @class FileSelectData
- * @param {string|null}     allowedTypes Space separated list of
- *                                       file extensions or mime
- *                                       types
- * @param {Dispatcher|null} dispatcher   Function to be called to
- *                                       inform the client about
- *                                       things that happen while
- *                                       processing a file.
+ *
+ * @param {Dispatcher|null} dispatcher Function to be called to
+ *                                     inform the client about
+ *                                     things that happen while
+ *                                     processing a file.
+ * @param {Object|null}     config     Values to override the static
+ *                                     (default) config values that
+ *                                     control limits
  *
  * @method processFiles Process file(s) provided by
  *                      `<input type="file" />` and add them to the
@@ -243,72 +250,145 @@ import { isObj } from '../../utils/data-utils';
  *                      in the list
  */
 export class FileSelectData {
-  static #imgResize = null;
-  static #maxFileCount = 15;
-  static #maxImgPx = 1500;
-  static #maxSingleSize = 15728640;
-  static #maxTotalSize = 47185920;
-  static #omitInvalid = true;
-  static #noResize = false;
-  static #defaultAllowed = [];
+  static _greyscale = false;
+  static _maxFileCount = 15;
+  static _maxImgPx = 1500;
+  static _maxSingleSize = 15728640;
+  static _maxTotalSize = 47185920;
+  static _omitInvalid = true;
+  static _noResize = false;
+  static _defaultAllowed = [];
 
   /**
    * Function to dispatch events to the client.
    *
    * @property {Dispatcher} dispatch
    */
-  #dispatch;
+  _dispatch;
 
   /**
    * List of files (with metadata) the user has selected for upload
    *
    * @property {FileDataItem[]} fileList
    */
-  #fileList;
+  _fileList;
 
   /**
    * The total size of all the files the user has selected for upload
    * @property {number} totalSize
    */
-  #totalSize;
+  _totalSize;
 
   /**
    * The number of files still being processed
    *
    * @property {number}
    */
-  #processing;
+  _processing;
 
   /**
    * List of allowed file types.
    *
    * @property {Object[]}
    */
-  #allowedTypes;
+  _allowedTypes;
 
-  constructor (allowedTypes = null, dispatcher = null) {
-    if (FileSelectData.#imgResize === null) {
-      FileSelectData.#imgResize = new imageBlobReduce();
-    }
+  /**
+   * Log of errors thrown by ImageBlobResize
+   *
+   * @property {Error[]}
+   */
+  _log;
 
-    this.#fileList = [];
-    this.#dispatch = (typeof dispatcher === 'function')
+  /**
+   * An object containing instance versions of the five static config values:
+
+   * * `maxFileCount`
+   * * `maxImgPx`
+   * * `maxSingleSize`
+   * * `maxTotalSize`
+   * * `omitInvalid`
+   * * `noResize`
+   *
+   * @property {object}
+   */
+  _config
+
+  constructor (dispatcher = null, config = null, canvas = null) {
+    this._fileList = [];
+    this._dispatch = (typeof dispatcher === 'function')
       ? dispatcher
       : dummyDispatch;
 
-    this.#totalSize = 0;
-    this.#processing = 0;
+    this._totalSize = 0;
+    this._processing = 0;
+    this._log = [];
 
-    if (typeof allowedTypes !== 'string') {
-      this.#allowedTypes = FileSelectData.#defaultAllowed;
-    } else {
-      this.#allowedTypes = getAllowedTypes(allowedTypes);
+    try {
+      this._setConfig(config);
+    } catch (e) {
+      throw Error(e.message);
     }
   }
 
   //  END:
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
+
+  static getMaxFileCount () { return this._maxFileCount; }
+
+  /**
+   * Get the maximum pixel count (in either direction) currently
+   * allowed for images
+   *
+   * @returns {number}
+   */
+  static getMaxImgPx () { return this._maxImgPx; }
+
+  /**
+   * Get the maximum byte size allowed for a single file
+   *
+   * @returns {number}
+   */
+  static getMaxSingleSize () { return this._maxSingleSize; }
+
+  /**
+   * Get the maximum total byte size allowed for all files
+   *
+   * @returns {number}
+   */
+  static getMaxTotalSize () { return this._maxTotalSize; }
+
+  /**
+   * Get the omit invalid state
+   *
+   * @returns {boolean}
+   */
+  static getOmitInvalid () { return this._omitInvalid; }
+
+  /**
+   * Get the no resize state
+   *
+   * @returns {boolean}
+   */
+  static getNoResize () { return this._noResize; }
+
+  /**
+   * Get an object keyed on event name and containing the data type
+   * provided with the event and a description of when the event is
+   * called and why.
+   *
+   * @returns {object}
+   */
+  static getEventTypes () { return getEventTypes(); }
+
+  static setAllowedTypes (allowedTypes) {
+    try {
+      this._defaultAllowed = getAllowedTypes(allowedTypes);
+    } catch (e) {
+      throw Error(e.message);
+    }
+  }
 
   /**
    * Set the maximum number of files the user can upload
@@ -318,18 +398,11 @@ export class FileSelectData {
    * @returns {void}
    */
   static setMaxFileCount (count) {
-    if (typeof count !== 'number' || count < 1) {
-      throw new Error(
-        'FileSelectData.setMaxFileCount() expects only argument '
-        + '`count` to be a number greater than 1',
-      );
+    try {
+      this._maxFileCount = getValidMaxFileCount(count);
+    } catch (e) {
+      throw Error(rewriteError(e.message));
     }
-
-    this.#maxFileCount = Math.round(count);
-  }
-
-  static getMaxFileCount () {
-    return this.#maxFileCount;
   }
 
   /**
@@ -341,25 +414,23 @@ export class FileSelectData {
    * @returns {void}
    */
   static setMaxImgPx (px) {
-    if (typeof px !== 'number' || px < 50 || px > 50000) {
-      throw new Error(
-        'FileSelectData.setMaxImgPx() expects only argument `px` '
-        + 'to be a number that is greater than or equal to 50 and '
-        + 'less than or equal to 50,000',
-      );
+    try {
+      this._maxImgPx = getValidMaxImgPx(px);
+    } catch (e) {
+      throw Error(rewriteError(e.message));
     }
-
-    this.#maxImgPx = Math.round(px);
   }
 
   /**
-   * Get the maximum pixel count (in either direction) currently
-   * allowed for images
+   * Allow FileSelectData to add oversized or invalid files to the
+   * list. Allow FileSelectData to keep adding files even after
+   * the maximum total upload size is reached or the total number of
+   * allowed files is exceded.
    *
-   * @returns {number}
+   * @returns {void}
    */
-  static getMaxImgPx () {
-    return this.#maxImgPx;
+  static keepInvalid () {
+    this._omitInvalid = false;
   }
 
   /**
@@ -373,19 +444,7 @@ export class FileSelectData {
    * @returns {void}
    */
   static omitInvalid () {
-    this.#omitInvalid = true;
-  }
-
-  /**
-   * Allow FileSelectData to add oversized or invalid files to the
-   * list. Allow FileSelectData to keep adding files even after
-   * the maximum total upload size is reached or the total number of
-   * allowed files is exceded.
-   *
-   * @returns {void}
-   */
-  static keepInvalid () {
-    this.#omitInvalid = false;
+    this._omitInvalid = true;
   }
 
   /**
@@ -405,44 +464,12 @@ export class FileSelectData {
    *                 parsed.
    */
   static setMaxSingleSize (max) {
-    const t = typeof max;
-    if (t === 'number') {
-      if (max === -1) {
-        this.#maxSingleSize = (1024 * 1024 * 1024 * 1024);
-      } else if (max > 256) {
-        this.#maxSingleSize = max;
-      } else {
-        throw new Error(
-          'FileSelectData.setMaxSingleSize() expects only argument '
-          + '`max` to be a number that is -1 (equivalent to infinite)'
-          + ' or greater than 256.',
-        );
-      }
-    } else if (t !== 'string')  {
-      throw new Error(
-        'FileSelectData.setMaxSingleSize() expects only argument '
-        + `\`max\` to be a string. ${t} given`,
-      );
-    }
-
     try {
-      this.#maxSingleSize = humanFileSizeToBytes(max);
+      this._maxSingleSize = getValidMaxSingleSize(max);
     } catch (e) {
-      throw new Error(
-        e.message.replace(
-          /^.*?. /,
-          'FileSelectData.setMaxSingleSize() ',
-        ),
-      );
+      throw new Error(rewriteError(e.message));
     }
   }
-
-  /**
-   * Get the maximum byte size allowed for a single file
-   *
-   * @returns {number}
-   */
-  static getMaxSingleSize () { return this.#maxSingleSize;}
 
   /**
    * Get the maximum total byte size allowed for all files
@@ -450,60 +477,46 @@ export class FileSelectData {
    * @returns {number}
    */
   static setMaxTotalSize (max) {
-    const t = typeof max;
-
-    if (t !== 'string')  {
-      throw new Error(
-        'FileSelectData.setMaxTotalSize() expects only argument '
-        + `\`max\` to be a string. ${t} given`,
-      );
-    }
-
     try {
-      this.#maxTotalSize = humanFileSizeToBytes(max);
+      this._maxTotalSize = getValidMaxTotalSize(max);
     } catch (e) {
-      throw new Error(
-        e.message.replace(
-          /^.*?. /,
-          'FileSelectData.setMaxTotalSize() ',
-        ),
-      );
+      throw new Error(rewriteError(e.message));
     }
   }
-
-  /**
-   * Get the maximum total byte size allowed for all files
-   *
-   * @returns {number}
-   */
-  static getMaxTotalSize () { return this.#maxTotalSize; }
-
-  /**
-   * Get the omit invalid state
-   *
-   * @returns {boolean}
-   */
-  static getOmitInvalid () { return this.#omitInvalid; }
-
-  /**
-   * Get the no resize state
-   *
-   * @returns {boolean}
-   */
-  static getNoResize () { return this.#noResize; }
-
-  /**
-   * Get an object keyed on event name and containing the data type
-   * provided with the event and a description of when the event is
-   * called and why.
-   *
-   * @returns {object}
-   */
-  static getEventTypes () { return getEventTypes(); }
 
   //  END:  Static methods
   // ----------------------------------------------------------------
   // START: private methods
+
+  _setConfig (config) {
+    this._config = {
+      greyScale: FileSelectData._greyScale,
+      maxFileCount: FileSelectData._maxFileCount,
+      maxImgPx: FileSelectData._maxImgPx,
+      maxSingleSize: FileSelectData._maxSingleSize,
+      maxTotalSize: FileSelectData._maxTotalSize,
+      omitInvalid: FileSelectData._omitInvalid,
+      defaultAllowed: FileSelectData._defaultAllowed,
+    };
+
+    if (isObj(config) === false) {
+      return false;
+    }
+
+    for (const key of Object.keys(this._config)) {
+      if (typeof config[key] !== 'undefined') {
+        const func = getRightConfigValidateFunc(key);
+
+        try {
+          this._config[key] = func(config[key]);
+        } catch (e) {
+          throw Error(rewriteConfigError(e));
+        }
+      }
+    }
+
+    return true;
+  }
 
   /**
    * Add a file to the list of files to upload (if it's OK to do so)
@@ -520,18 +533,18 @@ export class FileSelectData {
    *                         FALSE if it wasn't added and
    *                         NULL if it replaced an existing file.
    */
-  #addFileToList (file) {
-    if (FileSelectData.#omitInvalid === true && file.ok === false) {
+  _addFileToList (file) {
+    if (this._config.omitInvalid === true && file.ok === false) {
       return false;
     }
 
-    for (let a = 0; a < this.#fileList.length; a += 1) {
-      if (this.#fileList[a].name === file.name) {
+    for (let a = 0; a < this._fileList.length; a += 1) {
+      if (this._fileList[a].name === file.name) {
         // This is a file we've already seen.
         // We'll just update it's postion and replace the previous
         // version.
         file.position = a; // eslint-disable-line no-param-reassign
-        this.#fileList[a] = file;
+        this._fileList[a] = file;
         return null;
       }
     }
@@ -539,11 +552,11 @@ export class FileSelectData {
     // Only add new files if we are still under the maximum total
     // upload size AND the maximum upload count OR we don't care
     // about invalid files
-    if (FileSelectData.#omitInvalid === false
+    if (this._config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
-      file.position = this.#fileList.length; // eslint-disable-line no-param-reassign
-      this.#fileList.push(file);
+      file.position = this._fileList.length; // eslint-disable-line no-param-reassign
+      this._fileList.push(file);
       return true;
     }
   }
@@ -556,21 +569,21 @@ export class FileSelectData {
    *
    * @returns {void}
    */
-  #calculateTotal (file) {
+  _calculateTotal (file) {
     let sum = 0;
     for (const _file in this.fileList) {
       sum += _file.size
     }
 
-    this.#totalSize = sum;
+    this._totalSize = sum;
 
     if (this.tooBig() === true) {
-      this.#dispatch(
+      this._dispatch(
         'toobig',
         {
           name: file.name,
-          size: this.#totalSize,
-          max: FileSelectData.#maxTotalSize,
+          size: this._config.totalSize,
+          max: this._config.maxTotalSize,
         },
       );
     }
@@ -585,27 +598,27 @@ export class FileSelectData {
    * @returns {boolean} TRUE if the file is not allowed.
    *                    FALSE otherwise
    */
-  #processInvalidFile (file) {
-    if (isValidFileType(file, this.#allowedTypes) === true) {
+  _processInvalidFile (file) {
+    if (isValidFileType(file, this._allowedTypes) === true) {
       return false;
     }
 
     tmp.invalid = true;
     tmp.ok = false;
-    this.#addFileToList(file);
-    this.#dispatch('invalid', file.name);
+    this._addFileToList(file);
+    this._dispatch('invalid', file.name);
 
     return true;
   }
 
-  #checkTooMany (name) {
+  _checkTooMany (name) {
     if (this.tooMany()) {
-      this.#dispatch(
+      this._dispatch(
         'toomany',
         {
           name,
-          count: this.#fileList.length,
-          max: FileSelectData.#maxFileCount,
+          count: this._fileList.length,
+          max: this._config.maxFileCount,
         },
       );
     }
@@ -620,13 +633,22 @@ export class FileSelectData {
    *
    * @returns {void}
    */
-  #finaliseProcessing (file, inc = 0) {
-    this.#processing -= inc;
-    this.#dispatch('complete', { name: file.name, pos: file.position });
+  _finaliseProcessing (file, inc = 0) {
+    this._processing -= inc;
+    this._dispatch('complete', { name: file.name, pos: file.position });
 
-    this.#checkTooMany(file.name);
-    this.#calculateTotal();
-    this.#dispatch('allcomplete', (this.#processing === 0));
+    this._checkTooMany(file.name);
+    this._calculateTotal();
+    this._dispatch('allcomplete', (this._processing === 0));
+  }
+
+  _logError (message) {
+    context._log.push({
+      time: Date.now(),
+      message,
+    });
+
+    this._dispatch('resizeerror', message);
   }
 
   /**
@@ -641,8 +663,8 @@ export class FileSelectData {
    * @returns {boolean} `TRUE` If the file was too large and could
    *                    not be further processed. `FALSE` otherwise.
    */
-  #processOverSizedFile (file, resizeDone = false) {
-    if (file.size <= FileSelectData.#maxSingleSize
+  _processOverSizedFile (file, resizeDone = false) {
+    if (file.size <= this._config.maxSingleSize
       || (file.isImage === true && resizeDone === false)
     ) {
       return false;
@@ -650,65 +672,25 @@ export class FileSelectData {
 
     tmp.oversize = true
     tmp.ok = false;
-    this.#addFileToList(file);
+    this._addFileToList(file);
 
-    this.#dispatch(
+    this._dispatch(
       'oversize',
       {
         name: file.name,
         size: file.size,
-        max: FileSelectData.#maxSingleSize,
+        max: this._config.maxSingleSize,
       },
     );
 
     return true;
   }
 
-  /**
-   * Get a callback function to pass to `ImageBlobReduce.toBlob().then()`
-   * to handle successful resizing of an image
-   *
-   * @param {FileSelectData} context
-   * @param {FileDataItem}   file    File data object currently being
-   *                                 processed
-   * @returns {Function<{Blob}}}
-   */
-  #processImageThen (context, file) {
-    return (blob) => {
-      file.file = new File(
-        [blob],
-        file.name,
-        {
-          type: blob.type,
-          lastModified: new Date(),
-        }
-      )
-      file.processing = false;
-      file.size = file.file.size;
-
-      context.#addFileToList(file);
-      context.#finaliseProcessing(file, 1);
-    };
-  }
-
-  /**
-   * Get a callback function to pass to `ImageBlobReduce.toBlob().catch()`
-   * to handle failed resizing of an image
-   *
-   * @param {FileSelectData} context
-   * @param {FileDataItem}   file    File data object currently being
-   *                                 processed
-   * @returns {Function<{Blob}}}
-   */
-  #processImageCatch (context, file) {
-    return (error) => {
-      if (error.toString().includes('Pica: cannot use getImageData on canvas')) {
-        FileSelectData.#noResize = true;
-      }
-
-      context.#processOverSizedFile(file, true);
-      context.#finaliseProcessing(file, 1);
-    }
+  _processImage (file) {
+    throw new Error(
+      'You cannot call FileSelectData directly. '
+      + 'Use `FileSelectDataIBR` or `FileSelectDataWASM` instead.',
+    );
   }
 
   /**
@@ -719,7 +701,7 @@ export class FileSelectData {
    * @returns {boolean} `TRUE` if the file could be added to the list.
    *                    `FALSE` otherwise
    */
-  #processSingleFile (file) {
+  _processSingleFile (file) {
     const tmp = {
       ext: file.name.replace(/^.*?\.([a-z\d]+)$/i, ''),
       file,
@@ -735,26 +717,23 @@ export class FileSelectData {
       isImage: file.type.startsWith('image/'),
     };
 
-    this.#dispatch('processing', tmp.name);
+    this._dispatch('processing', tmp.name);
 
-    if (this.#processInvalidFile(tmp) === true
-      || this.#processOverSizedFile(tmp) === true
+    if (this._processInvalidFile(tmp) === true
+      || this._processOverSizedFile(tmp) === true
     ) {
-      this.#finaliseProcessing(tmp);
+      this._finaliseProcessing(tmp);
       return false;
     }
 
-    if (tmp.isImage === false || FileSelectData.#noResize === true) {
-      this.#finaliseProcessing(tmp);
+    if (tmp.isImage === false || FileSelectData._noResize === true) {
+      this._finaliseProcessing(tmp);
       return true;
     }
 
-    this.#processing += 1;
+    this._processing += 1;
 
-    FileSelectData.#imgResize.toBlob(file, { max: FileSelectData.#maxImgPx })
-      .then(this.#processImageThen(this, tmp))
-      .catch(this.#processImageCatch(this, tmp));
-
+    _processImage (file);
     return true;
   }
 
@@ -792,10 +771,10 @@ export class FileSelectData {
    */
   getAllFiles (onlyGood = null) {
     if (onlyGood === null) {
-      return this.#fileList.map(cloneFileDataItem);
+      return this._fileList.map(cloneFileDataItem);
     }
 
-    return this.#fileList.filter((file) => (file.ok === onlyGood))
+    return this._fileList.filter((file) => (file.ok === onlyGood))
       .map(cloneFileDataItem);
   }
 
@@ -811,7 +790,7 @@ export class FileSelectData {
    *
    * @returns {Dispatcher}
    */
-  getDispatch () { return this.#dispatch; }
+  getDispatch () { return this._dispatch; }
 
   /**
    * Get the number of files in this instance
@@ -826,11 +805,11 @@ export class FileSelectData {
    */
   getFileCount (onlyGood = null) {
     if (onlyGood === null) {
-      return this.#fileList.length;
+      return this._fileList.length;
     }
 
     let output = 0;
-    for (const file of this.#fileList) {
+    for (const file of this._fileList) {
       if (file.ok === onlyGood) {
         output += 1;
       }
@@ -862,9 +841,9 @@ export class FileSelectData {
       tooMany,
       tooBig,
       badFiles,
-      count: this.#fileList.length,
-      size: this.#totalSize,
-      processing: this.#processing,
+      count: this._fileList.length,
+      size: this._totalSize,
+      processing: this._processing,
     };
   }
 
@@ -888,10 +867,10 @@ export class FileSelectData {
    */
   hasFiles (onlyGood = null) {
     if (onlyGood === null) {
-      return (this.#fileList.length > 0);
+      return (this._fileList.length > 0);
     }
 
-    for (const file of this.#fileList) {
+    for (const file of this._fileList) {
       if (file.ok === onlyGood) {
         return true;
       }
@@ -920,14 +899,14 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  isProcessing () { return this.#processing > 0; }
+  isProcessing () { return this._processing > 0; }
 
   /**
    * Get the maximum number of files allowed
    *
    * @returns {number}
    */
-  maxFiles () { return FileSelectData.#maxFileCount; }
+  maxFiles () { return this._config.maxFileCount; }
 
   /**
    * Get the maximum pixel count (in either direction) currently
@@ -935,28 +914,28 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  maxPx () { return FileSelectData.#maxImgPx; }
+  maxPx () { return this._config.maxImgPx; }
 
   /**
    * Get the maximum byte size allowed for a single file
    *
    * @returns {number}
    */
-  maxSingleSize () { return FileSelectData.#maxSingleSize; }
+  maxSingleSize () { return this._config.maxSingleSize; }
 
   /**
    * Get the maximum total byte size allowed for all files
    *
    * @returns {number}
    */
-  maxTotalSize () { return FileSelectData.#maxTotalSize; }
+  maxTotalSize () { return this._config.maxTotalSize; }
 
   /**
    * Get the no resize state
    *
    * @returns {boolean}
    */
-  noResize () { return FileSelectData.#noResize; }
+  noResize () { return FileSelectData._noResize; }
 
   /**
    * Whether or not it would be OK to upload the selected files as is
@@ -967,7 +946,7 @@ export class FileSelectData {
     return (this.tooBig() === false
       && this.tooMany() === false
       && this.hasBadFiles() === false
-      && this.#fileList.length > 0);
+      && this._fileList.length > 0);
   }
 
   /**
@@ -975,7 +954,7 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  omitInvalid() { return FileSelectData.#omitInvalid; }
+  omitInvalid() { return this._config.omitInvalid; }
 
   /**
    * Whether or not the total size of selected files is larger than
@@ -984,7 +963,7 @@ export class FileSelectData {
    * @returns {boolean}
    */
   tooBig () {
-    return (this.#totalSize > FileSelectData.#maxTotalSize);
+    return (this._totalSize > this._config.maxTotalSize);
   }
 
   /**
@@ -993,7 +972,7 @@ export class FileSelectData {
    * @returns {boolean}
    */
   tooMany () {
-    return (this.#fileList.length > FileSelectData.#maxFileCount);
+    return (this._fileList.length > this._config.maxFileCount);
   }
 
   /**
@@ -1001,7 +980,7 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  totalSize () { return this.#totalSize; }
+  totalSize () { return this._totalSize; }
 
   //  END:  Public getter methods
   // ----------------------------------------------------------------
@@ -1021,25 +1000,25 @@ export class FileSelectData {
    * @returns {true}
    */
   clean (deleteExcess = false) {
-    this.#fileList = this.#fileList.filter((file) => file.ok === true);
+    this._fileList = this._fileList.filter((file) => file.ok === true);
 
     // Update the total upload size
-    this.#calculateTotal();
+    this._calculateTotal();
 
     if (deleteExcess !== true) {
       return true;
     }
 
     if (this.tooMany()) {
-      const diff = this.#fileList.length - FileSelectData.#maxFileCount;
-      this.#fileList = this.#fileList.splice(FileSelectData.#maxFileCount - 1, diff);
+      const diff = this._fileList.length - this._config.maxFileCount;
+      this._fileList = this._fileList.splice(this._config.maxFileCount - 1, diff);
     }
 
     if (this.tooBig() === true) {
-      for (let a = this.#fileList.length - 1; a >= 0; a -= 1) {
-        this.#fileList.pop();
+      for (let a = this._fileList.length - 1; a >= 0; a -= 1) {
+        this._fileList.pop();
 
-        this.#calculateTotal();
+        this._calculateTotal();
         if (this.tooBig() === false) {
           return true;
         }
@@ -1059,8 +1038,8 @@ export class FileSelectData {
 
     this.fileList = this.fileList.filter((file) => (file.name !== name)).map(resetPos);
 
-    this.#calculateTotal();
-    this.#checkTooMany(name);
+    this._calculateTotal();
+    this._checkTooMany(name);
 
     return (this.fileList.length < l);
   }
@@ -1083,16 +1062,16 @@ export class FileSelectData {
       );
     }
 
-    const c = this.#fileList.length;
+    const c = this._fileList.length;
     const newFiles = [];
 
-    this.#dispatch('processcount', files.length);
+    this._dispatch('processcount', files.length);
 
     for (const file of files) {
-      newFiles.push(this.#processSingleFile(file));
+      newFiles.push(this._processSingleFile(file));
     }
 
-    const diff = (this.#fileList.length - c);
+    const diff = (this._fileList.length - c);
 
     return {
       ...this.getStatus(),
@@ -1139,7 +1118,7 @@ export class FileSelectData {
         this.fileList.splice(from, 1);
         this.fileList.splice(to, 0, item);
 
-        this.fileList = this.#fileList.map(resetPos);
+        this.fileList = this._fileList.map(resetPos);
         return true;
       }
     }
@@ -1163,7 +1142,7 @@ export class FileSelectData {
   getFileList (onlyGood = null) {
     const output = new DataTransfer();
 
-    for (const file of this.#fileList) {
+    for (const file of this._fileList) {
       if (onlyGood === null || (onlyGood === file.ok)) {
         output.items.add(file.file);
       }
@@ -1195,7 +1174,7 @@ export class FileSelectData {
     const promises = [];
     let form = new FormData();
 
-    for (const file of this.#fileList) {
+    for (const file of this._fileList) {
       if (includeBad === true || file.ok === true) {
         promises.push(Promise.resolve(form.append('File', file)));
       }

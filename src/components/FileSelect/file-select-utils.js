@@ -56,8 +56,7 @@ export const getAllowedTypes = (types) => {
   if (good.length === 0) {
     // eslint-disable-next-line no-console
     throw new Error(
-      'Bad file mime types specified in <file-upload> component: '
-      + `"${bad.join('", "')}"`,
+      `Bad file mime types specified: "${bad.join('", "')}"`,
     );
 
   }
@@ -242,4 +241,150 @@ export const getEventTypes = () => {
       description: 'Emitted when work starts on a batch of files',
     },
   }
+};
+
+export const getValidMaxSingleSize = (max) => {
+  const t = typeof max;
+  if (t === 'number') {
+    if (max === -1) {
+      return (1024 * 1024 * 1024 * 1024);
+    } else if (max > 256) {
+      return max;
+    } else {
+      throw new Error(
+        'getValidMaxSingleSize() expects only argument '
+        + '`max` to be a number that is -1 (equivalent to infinite)'
+        + ' or greater than 256.',
+      );
+    }
+  } else if (t !== 'string')  {
+    throw new Error(
+      'getValidMaxSingleSize() expects only argument '
+      + `\`max\` to be a string. ${t} given`,
+    );
+  }
+
+  try {
+    return humanFileSizeToBytes(max);
+  } catch (e) {
+    throw new Error(
+      e.message.replace(
+        /^.*?. /,
+        'getValidMaxSingleSize() ',
+      ),
+    );
+  }
+};
+
+/**
+ * Get the maximum total byte size allowed for all files
+ *
+ * @returns {number}
+ */
+export const getValidMaxTotalSize = (max) => {
+  const t = typeof max;
+
+  if (t !== 'string')  {
+    throw new Error(
+      'getValidMaxTotalSize() expects only argument '
+      + `\`max\` to be a string. ${t} given`,
+    );
+  }
+
+  try {
+    return humanFileSizeToBytes(max);
+  } catch (e) {
+    throw new Error(
+      e.message.replace(
+        /^.*?. /,
+        'getValidMaxTotalSize() ',
+      ),
+    );
+  }
+};
+
+/**
+ * Set the maximim pixel count in either direction an image can
+ * be before it is resized
+ *
+ * @param {number} count
+ *
+ * @returns {void}
+ */
+export const getValidMaxImgPx = (px) => {
+  if (typeof px !== 'number' || px < 50 || px > 50000) {
+    throw new Error(
+      'getValidMaxImgPx() expects only argument `px` '
+      + 'to be a number that is greater than or equal to 50 and '
+      + 'less than or equal to 50,000',
+    );
+  }
+
+  return Math.round(px);
+};
+
+/**
+ * Set the maximum number of files the user can upload
+ *
+ * @param {number} count
+ *
+ * @returns {void}
+ */
+export const getValidMaxFileCount = (count) => {
+  if (typeof count !== 'number' || count < 1) {
+    throw new Error(
+      'getValidMaxFileCount() expects only argument '
+      + '`count` to be a number greater than 1',
+    );
+  }
+
+  return Math.round(count);
+};
+
+export const getValidSetBoolTrue = (input) => (input === true);
+
+export const getRightConfigValidateFunc = (key) => {
+  switch (key) {
+    case 'maxFileCount':
+      return getValidMaxFileCount;
+
+    case 'maxImgPx':
+      return getValidMaxImgPx;
+
+    case 'maxSingleSize':
+      return getValidMaxSingleSize;
+
+    case 'maxTotalSize':
+      return getValidMaxTotalSize;
+
+    case 'greyScale':
+    case 'omitInvalid':
+      return getValidSetBoolTrue;
+
+    case 'defaultAllowed':
+      return getAllowedTypes;
+
+    default:
+      throw new Error(
+        'getRightConfigValidateFunc() could not determine the '
+        + `correct function to return using "${key}"`,
+      );
+  }
+};
+
+export const rewriteError = (msg) => msg.replace(
+  'getValid',
+  'FileSelectData.set',
+);
+
+export const rewriteConfigError = (msg) => {
+  const bits = msg.split(' ', 2);
+  let key = bits[0].replace(/^getValid([^\()]+)\(.*$/i, '');
+  key = key.substring(0, 1).toLowerCase() + key.substring(1);
+
+  let tail = bits[1].trim();
+  tail = tail.substring(0, 1).toLowerCase() + tail.substring(1);
+
+  return `FileSelectData constructor expect config.${key} to be `
+    + `valid: ${tail}`;
 };
