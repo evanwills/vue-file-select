@@ -119,13 +119,15 @@ import { FileSelectData } from './FileSelectData.class';
  *
  * @class FileSelectData
  *
- * @param {Dispatcher|null} dispatcher Function to be called to
- *                                     inform the client about
- *                                     things that happen while
- *                                     processing a file.
- * @param {Object|null}     config     Values to override the static
- *                                     (default) config values that
- *                                     control limits
+ * @param {Dispatcher}        dispatcher Function to be called to
+ *                                       inform the client about
+ *                                       things that happen while
+ *                                       processing a file.
+ * @param {Object}            config     Values to override the static
+ *                                       (default) config values that
+ *                                       control limits
+ * @param {HTMLCanvasElement} canvas     Canvas element to use with
+ *                                       Photon
  *
  * @method processFiles Process file(s) provided by
  *                      `<input type="file" />` and add them to the
@@ -189,13 +191,51 @@ import { FileSelectData } from './FileSelectData.class';
  *                      already added to the list
  * @method totalSize    Get the total size in bytes for all the files
  *                      in the list
+ *
+ * @method getMaxImgPx  [static] Get the maximum pixel count (in
+ *                      either direction) currently allowed for
+ *                      images
+ * @method getMaxSingleSize Get the maximum byte size allowed for a
+ *                      single file
+ * @method getMaxTotalSize Get the maximum total byte size allowed
+ *                      for all files
+ * @method getOmitInvalid Get the omit invalid state
+ * @method getNoResize  Get the no resize state
+ * @method getEventTypes Get an object keyed on event name and
+ *                      containing the data type provided with the
+ *                      event and a description of when the event is
+ *                      called and why.
+ * @method keepInvalid  Allow `FileSelectData` to add oversized or
+ *                      invalid files to the list. Allow
+ *                      `FileSelectData` to keep adding files even
+ *                      after the maximum total upload size is
+ *                      reached or the total number of allowed files
+ *                      is exceded.
+ * @method omitInvalid  Prevent `FileSelectData` from adding
+ *                      oversized or invalid files to the list. Also
+ *                      prevent `FileSelectData` from adding files
+ *                      after the maximum total upload size is
+ *                      reached or the total number of allowed files
+ *                      is exceded.
+ * @method setAllowedTypes Set default allowed types. Default types
+ *                      are used when allowd types is not included in
+ *                      the config object passed to the constructor
+ * @method setMaxFileCount Set the maximum number of files the user
+ *                      can upload
+ * @method setMaxImgPx  Set the maximim pixel count in either
+ *                      direction an image can be before it is
+ *                      resized
+ * @method setMaxSingleSize Set the maximum size allowed for a single
+ *                      file
+ * @method setMaxTotalSize Set the maximum total byte size allowed
+ *                      for all files
  */
 export class FileSelectDataPhoton extends FileSelectData {
   static #imgResize = null;
 
   #canvas;
 
-  constructor (dispatcher = null, config = null, canvas = null) {
+  constructor (dispatcher, config, canvas) {
     super(dispatcher, config);
 
     if (canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
@@ -205,6 +245,8 @@ export class FileSelectDataPhoton extends FileSelectData {
         + 'element/DOM node.',
       )
     }
+
+    this.#canvas = canvas;
   }
 
   //  END:
@@ -219,27 +261,57 @@ export class FileSelectDataPhoton extends FileSelectData {
   // ----------------------------------------------------------------
   // START: private methods
 
-  #processImg(file) {
+  async #getProcessedImageFile ({ uniqueName, lastModified }, canvas) {
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          resolve(
+            new File(
+              [blob],
+              uniqueName.replace(/(?<=\.)[a-z0-9]+$/, 'jpg'),
+              {
+                lastModifiedDate: lastModified,
+                type: 'image/jpeg',
+              },
+            ),
+          );
+        },
+        'image/jpeg',
+        this._config.jpegCompression,
+      );
+    });
+  }
+
+  async #processImg(fileData) {
     // See documentation:
     // https://silvia-odwyer.github.io/photon/guide/using-photon-web/
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
 
     // Draw the image element onto the canvas
-    ctx.drawImage(file.file, 0, 0);
+    ctx.drawImage(fileData.file, 0, 0);
 
     // Convert the ImageData found in the canvas to a PhotonImage (so that it can communicate with the core Rust library)
     let image = photon.open_image(canvas, ctx);
 
-    photon.reisze(image, )
+    photon.reisze(image, fileData.metadata.width, fileData.metadata.height);
+
     if (this._config.greyScale === true) {
       photon.greyscale(image);
     }
 
     // Place the modified image back on the canvas
-    photon.putImageData(canvas, ctx, image);
+    photon.putImageData(this.#canvas, ctx, image);
 
-    this._finaliseProcessing(file, 1);
+    file.file = await this.#getProcessedImageFile(file, this.#canvas);
+    file.size = file.file.size;
+    file.ok = (file.size < this._config.maxSingleSize);
+
+    const newName = fileData.name !== fileData.file.name
+      ? fileData.file.name
+      : null;
+
+    this._finaliseProcessing(fileData, 1, newName);
   }
 
   #initPhoton (file) {
@@ -248,15 +320,17 @@ export class FileSelectDataPhoton extends FileSelectData {
 
     return (photon) => {
       setPhoton(photon);
-      return proccessImg(file);
+      proccessImg(file);
     };
   }
 
-  async _processImage (file) {
-    if (FileSelectDataPhoton.#imgResize === null) {
-      import("@silvia-odwyer/photon").then(this.#initPhoton(file));
-    } else {
-      this.#processImg(file);
+  async _processImage (fileData) {
+    if (super(fileData)) {
+      if (FileSelectDataPhoton.#imgResize === null) {
+        import("@silvia-odwyer/photon").then(this.#initPhoton(fileData));
+      } else {
+        this.#processImg(fileData);
+      }
     }
   }
 

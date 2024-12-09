@@ -4,6 +4,26 @@ export const dummyDispatch = (_eventName, _data) => {};
 
 export const cloneFileDataItem = (file) => ({ ...file });
 
+export const fileIsOK = (fileData) => (fileData.ok === true);
+
+export const fileIsGood = (good) => (fileData) => (fileData.ok === good);
+
+export const isNum = (input, min = null, max = null) => {
+  if (typeof input !== 'number' || isNaN(input) || !isFinite(input)) {
+    return false;
+  }
+
+  if (isNum(min) && input < min) {
+    return false;
+  }
+
+  if (isNum(max) && input > max) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Get list of allowed file types separated list of file extensions
  *
@@ -243,6 +263,18 @@ export const getEventTypes = () => {
   }
 };
 
+export const getValidJpegCompression = (value) => {
+  if (isNum(value, 0, 1) === false) {
+    throw new Error(
+      'getValidSetJpegCompression() expects only argument `value` '
+      + 'to be a number that is greater than or equal to zero and '
+      + 'less than or equal to one',
+    );
+  }
+
+  return value;
+};
+
 export const getValidMaxSingleSize = (max) => {
   const t = typeof max;
   if (t === 'number') {
@@ -312,7 +344,7 @@ export const getValidMaxTotalSize = (max) => {
  * @returns {void}
  */
 export const getValidMaxImgPx = (px) => {
-  if (typeof px !== 'number' || px < 50 || px > 50000) {
+  if (isNum(px, 50, 50000) === false) {
     throw new Error(
       'getValidMaxImgPx() expects only argument `px` '
       + 'to be a number that is greater than or equal to 50 and '
@@ -331,7 +363,7 @@ export const getValidMaxImgPx = (px) => {
  * @returns {void}
  */
 export const getValidMaxFileCount = (count) => {
-  if (typeof count !== 'number' || count < 1) {
+  if (isNum(count, 1) === false) {
     throw new Error(
       'getValidMaxFileCount() expects only argument '
       + '`count` to be a number greater than 1',
@@ -343,8 +375,27 @@ export const getValidMaxFileCount = (count) => {
 
 export const getValidSetBoolTrue = (input) => (input === true);
 
+/**
+ * Get a function that can be used to validate a given config
+ * property value
+ *
+ * @param {string} key config object property name
+ *
+ * @returns {Function} Function for validating the config property
+ *                     value
+ */
 export const getRightConfigValidateFunc = (key) => {
   switch (key) {
+    case 'greyScale':
+    case 'omitInvalid':
+      return getValidSetBoolTrue;
+
+    case 'defaultAllowed':
+      return getAllowedTypes;
+
+    case 'jpegCompression':
+      return getValidJpegCompression;
+
     case 'maxFileCount':
       return getValidMaxFileCount;
 
@@ -356,13 +407,6 @@ export const getRightConfigValidateFunc = (key) => {
 
     case 'maxTotalSize':
       return getValidMaxTotalSize;
-
-    case 'greyScale':
-    case 'omitInvalid':
-      return getValidSetBoolTrue;
-
-    case 'defaultAllowed':
-      return getAllowedTypes;
 
     default:
       throw new Error(

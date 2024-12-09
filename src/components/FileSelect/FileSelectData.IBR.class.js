@@ -22,26 +22,34 @@ import { FileSelectData } from './FileSelectData.class';
 // START: Local type definitions
 
 /**
+ * Holds basic info about a single file, plus the `File` itself and
+ * possibly image metadata, if the file is an image
+ *
  * @typedef FileDataItem
  * @type {object}
  *
- * @property {string}  name       Unique name for file
- * @property {string}  ogName     Original name of selected file
- * @property {string}  ext        File extention
- * @property {string}  mime       File mime type
- * @property {string}  size       File size in bytes
- * @property {number}  position   Postion of the file within the list
- *                                of files
- * @property {boolean} invalid    Whether or not the file is a valid
- *                                type
- * @property {boolean} ok         Whether or not there are issues
- *                                with this file
- * @property {boolean} oversize   Whether or not the file exceeds the
- *                                maximum file size allowed
- * @property {boolean} processing Whether or not the file is
- *                                currently being processed
- * @property {File}    file       File object that can be uploaded to
- *                                the server
+ *
+ * @property {string}  ext          File extention
+ * @property {File}    fileData     File object that can be uploaded
+ *                                  to the server
+ * @property {boolean} invalid      Whether or not the file is a
+ * @property {boolean} isImage      Whether or not the file is an
+ *                                  image
+ * @property {string}  lastModified ISO8601 Date time string for when
+ *                                  the file was last modified
+ * @property {Object|null} metadata Basic info for image files
+ * @property {string}  mime         File mime type
+ * @property {string}  name         Unique name for file
+ * @property {string}  ogName       Original name of selected file
+ * @property {boolean} ok           Whether or not there are issues
+ *                                  with this file
+ * @property {boolean} oversize     Whether or not the file exceeds
+ *                                  the maximum file size allowed
+ * @property {number}  position     Postion of the file within the
+ *                                  list of files
+ * @property {boolean} processing   Whether or not the file is
+ *                                  currently being processed
+ * @property {string}  size         File size in bytes
  */
 
 /**
@@ -230,6 +238,44 @@ import { FileSelectData } from './FileSelectData.class';
  *                      already added to the list
  * @method totalSize    Get the total size in bytes for all the files
  *                      in the list
+ *
+ * @method getMaxImgPx  [static] Get the maximum pixel count (in
+ *                      either direction) currently allowed for
+ *                      images
+ * @method getMaxSingleSize Get the maximum byte size allowed for a
+ *                      single file
+ * @method getMaxTotalSize Get the maximum total byte size allowed
+ *                      for all files
+ * @method getOmitInvalid Get the omit invalid state
+ * @method getNoResize  Get the no resize state
+ * @method getEventTypes Get an object keyed on event name and
+ *                      containing the data type provided with the
+ *                      event and a description of when the event is
+ *                      called and why.
+ * @method keepInvalid  Allow `FileSelectData` to add oversized or
+ *                      invalid files to the list. Allow
+ *                      `FileSelectData` to keep adding files even
+ *                      after the maximum total upload size is
+ *                      reached or the total number of allowed files
+ *                      is exceded.
+ * @method omitInvalid  Prevent `FileSelectData` from adding
+ *                      oversized or invalid files to the list. Also
+ *                      prevent `FileSelectData` from adding files
+ *                      after the maximum total upload size is
+ *                      reached or the total number of allowed files
+ *                      is exceded.
+ * @method setAllowedTypes Set default allowed types. Default types
+ *                      are used when allowd types is not included in
+ *                      the config object passed to the constructor
+ * @method setMaxFileCount Set the maximum number of files the user
+ *                      can upload
+ * @method setMaxImgPx  Set the maximim pixel count in either
+ *                      direction an image can be before it is
+ *                      resized
+ * @method setMaxSingleSize Set the maximum size allowed for a single
+ *                      file
+ * @method setMaxTotalSize Set the maximum total byte size allowed
+ *                      for all files
  */
 export class FileSelectDataIBR extends FileSelectData {
   static #imgResize = null;
@@ -285,6 +331,7 @@ export class FileSelectDataIBR extends FileSelectData {
   #processImageBlobCatch (context, file) {
     return (error) => {
       context._logError(error.message);
+
       if (error.message.includes('Pica: cannot use getImageData on canvas')) {
         FileSelectData._noResize = true;
       }
@@ -295,9 +342,12 @@ export class FileSelectDataIBR extends FileSelectData {
   }
 
   _processImage (file) {
+    super(file);
+
     if (FileSelectDataIBR.#imgResize === null) {
       FileSelectDataIBR.#imgResize = new imageBlobReduce();
     }
+
     FileSelectDataIBR._imgResize.toBlob(file, { max: this._config.maxImgPx })
       .then(this.#processImageBlobThen(this, tmp))
       .catch(this.#processImageBlobCatch(this, tmp));
