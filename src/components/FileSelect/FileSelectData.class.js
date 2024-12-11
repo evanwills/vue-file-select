@@ -18,6 +18,7 @@ import {
   rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../utils/data-utils';
+import { nanoid } from 'nanoid';
 
 // ==================================================================
 // START: Local type definitions
@@ -333,7 +334,7 @@ export class FileSelectData {
    *
    * @property {number}
    */
-  _processing;
+  _processingCount;
 
   /**
    * List of allowed file types.
@@ -370,7 +371,7 @@ export class FileSelectData {
       : dummyDispatch;
 
     this._totalSize = 0;
-    this._processing = 0;
+    this._processingCount = 0;
     this._log = [];
 
     try {
@@ -589,15 +590,8 @@ export class FileSelectData {
       return false;
     }
 
-    for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].name === fileData.name) {
-        // This is a file we've already seen.
-        // We'll just update it's postion and replace the previous
-        // version.
-        fileData.position = a; // eslint-disable-line no-param-reassign
-        this._fileList[a] = fileData;
-        return null;
-      }
+    if (this._updateFile(fileData) === true) {
+      return null;
     }
 
     // Only add new files if we are still under the maximum total
@@ -606,11 +600,32 @@ export class FileSelectData {
     if (this._config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
-      fileData.position = this._fileList.length; // eslint-disable-line no-param-reassign
-      this._fileList.push(fileData);
-      return true;
+      const output = {
+        ...fileData,
+        id: nanoid(8),
+        postion: this._fileList.length,
+      };
+      this._fileList.push(output);
+      return output;
     }
   }
+
+  _updateFile (fileData) {
+    for (let a = 0; a < this._fileList.length; a += 1) {
+      if ((fileData.id !== null && this._fileList[a].id === fileData.id)
+        || (this._fileList[a].name === fileData.name)
+      ) {
+        // This is a file we've already seen.
+        // We'll just update it's postion and replace the previous
+        // version.
+        fileData.position = a; // eslint-disable-line no-param-reassign
+        this._fileList[a] = fileData;
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   /**
    * Calculate the total size of all the files in the file list
@@ -654,9 +669,12 @@ export class FileSelectData {
       return false;
     }
 
-    tmp.invalid = true;
-    tmp.ok = false;
-    this._addFileToList(fileData);
+    output = this._addFileToList({
+      ...fileData,
+      invalid: true,
+      ok: false,
+    });
+
     this._dispatch('invalid', fileData.name);
 
     return true;
@@ -675,18 +693,19 @@ export class FileSelectData {
     }
   }
 
-  _renameFile (oldName, newName) {
+  _renameFile ({ id, name }, newName) {
     for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].name === oldName) {
+      if (this._fileList[a].id === id) {
         this._fileList[a].name = newName;
         this._dispatch(
           'renamed',
           {
-            oldName,
+            oldName: name,
             newName,
             position: this._fileList[a].position,
           },
         );
+        return this._fileList[a];
       }
     }
   }
@@ -701,16 +720,24 @@ export class FileSelectData {
    * @returns {void}
    */
   _finaliseProcessing (fileData, inc = 0, newName = null) {
-    this._processing -= inc;
-    this._dispatch('complete', { name: fileData.name, pos: fileData.position });
-
-    this._checkTooMany(fileData.name);
-    this._calculateTotal();
-    this._dispatch('allcomplete', (this._processing === 0));
+    this._processingCount -= inc;
 
     if (typeof newName === 'string') {
-      this._renameFile(fileData.name, newName);
+      this._renameFile(output, newName);
     }
+
+    const output = this._updateFile({
+      ...fileData,
+      processing: false,
+    });
+
+    this._dispatch('complete', { id: output.id, name: output.name, pos: output.position });
+
+    this._checkTooMany(output.name);
+
+    this._calculateTotal();
+
+    this._dispatch('allcomplete', (this._processingCount === 0));
   }
 
   _log (message) {
@@ -739,15 +766,20 @@ export class FileSelectData {
       return false;
     }
 
-    tmp.oversize = true
-    tmp.ok = false;
-    this._addFileToList(fileData);
+    let output = {
+      ...fileData,
+      oversize: true,
+      ok: false,
+    }
+
+    output = this._addFileToList(output);
 
     this._dispatch(
       'oversize',
       {
-        name: fileData.name,
-        size: fileData.size,
+        id: output.id,
+        name: output.name,
+        size: output.size,
         max: this._config.maxSingleSize,
       },
     );
@@ -800,7 +832,8 @@ export class FileSelectData {
       return false;
     }
 
-    this._processing += 1;
+    this._processingCount += 1;
+    this._imageCount
 
     this._addFileToList(fileData);
 
@@ -817,6 +850,7 @@ export class FileSelectData {
    */
   _processSingleFile (file) {
     const fileData = {
+      id: null,
       ext: file.name.replace(/^.*?\.([a-z\d]+)$/i, ''),
       file,
       invalid: false,
@@ -949,7 +983,7 @@ export class FileSelectData {
       badFiles,
       count: this._fileList.length,
       ok,
-      processing: this._processing,
+      processing: this._processingCount,
       size: this._totalSize,
       tooBig,
       tooMany,
@@ -1008,7 +1042,7 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  isProcessing () { return this._processing > 0; }
+  isProcessing () { return this._processingCount > 0; }
 
   /**
    * Get the maximum number of files allowed
@@ -1142,100 +1176,19 @@ export class FileSelectData {
    *
    * @returns {boolean} TRUE if file was deleted. FALSE otherwise
    */
-  deleteFile (name) {
+  deleteFile (id) {
     const l = this.fileList.length;
 
-    this.fileList = this.fileList.filter((fileData) => (fileData.name !== name)).map(resetPos);
+    const outGoing = this.fileList.find((item) => item.id === id);
 
-    this._calculateTotal();
-    this._checkTooMany(name);
+    if (typeof outGoing !== 'undefined') {
+      this.fileList = this.fileList.filter((fileData) => (fileData.id !== id)).map(resetPos);
+
+      this._calculateTotal();
+      this._checkTooMany(outGoing.name);
+    }
 
     return (this.fileList.length < l);
-  }
-
-  /**
-   * Process file(s) provided by `<input type="file" />` and add them
-   * to the list of files a user wants to update.
-   *
-   * > __Note:__ While this function returns immediately, various
-   * >           events are dispatched via the `dispatcher` provided
-   * >           to the constructor if images can be resized, a
-   * >           promise will be envoked
-   *
-   * @param {FileList} files
-   *
-   * @returns {Object}
-   */
-  processFiles (files) {
-    if ((files instanceof FileList) === false || files.length === 0) {
-      throw new Error(
-        'FileSelectData.processFiles() expects only argument to be '
-        + 'an instance of FileList containing at least one file',
-      );
-    }
-
-    const c = this._fileList.length;
-    const newFiles = [];
-
-    this._dispatch('processcount', files.length);
-
-    for (const fileData of files) {
-      newFiles.push(this._processSingleFile(fileData));
-    }
-
-    const diff = (this._fileList.length - c);
-
-    return {
-      ...this.getStatus(),
-      newFiles: files.length,
-      added: diff,
-      multi: diff > 1,
-    };
-  }
-
-  /**
-   * Change the relative position of a file within the list of files
-   * that the user has selected
-   *
-   * @param {string} name   Name of file to be moved.
-   * @param {number} relPos Positive relative to its current position
-   *                        in the list of files.
-   *
-   * @returns {boolean} TRUE if file was successfully moved.
-   *                    FALSE otherwise.
-   */
-  moveFile (name, relPos) {
-    const max = this.fileList.length - 1
-
-    for (let a = 0; a < this.fileList.length; a += 1) {
-      if (this.fileList[a].name === name) {
-        const from = a;
-        const to = a + relPos;
-
-        if (to === a) {
-          return false;
-        } else if (to < a && to < 0) {
-          if (a === 0) {
-            return false;
-          }
-          to = 0;
-        } else if (to > a && to > max) {
-          if (a >= max) {
-            return false;
-          }
-          to = max;
-        }
-
-        const item = this.fileList[from];
-        this.fileList.splice(from, 1);
-        this.fileList.splice(to, 0, item);
-
-        this.fileList = this._fileList.map(resetPos);
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**
@@ -1301,6 +1254,91 @@ export class FileSelectData {
     await Promise.all(promises);
 
     return form;
+  }
+
+  /**
+   * Change the relative position of a file within the list of files
+   * that the user has selected
+   *
+   * @param {string} name   Name of file to be moved.
+   * @param {number} relPos Positive relative to its current position
+   *                        in the list of files.
+   *
+   * @returns {boolean} TRUE if file was successfully moved.
+   *                    FALSE otherwise.
+   */
+  moveFile (id, relPos) {
+    const max = this.fileList.length - 1
+
+    for (let a = 0; a < this.fileList.length; a += 1) {
+      if (this.fileList[a].id === id) {
+        const from = a;
+        const to = a + relPos;
+
+        if (to === a) {
+          return false;
+        } else if (to < a && to < 0) {
+          if (a === 0) {
+            return false;
+          }
+          to = 0;
+        } else if (to > a && to > max) {
+          if (a >= max) {
+            return false;
+          }
+          to = max;
+        }
+
+        const item = this.fileList[from];
+        this.fileList.splice(from, 1);
+        this.fileList.splice(to, 0, item);
+
+        this.fileList = this._fileList.map(resetPos);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Process file(s) provided by `<input type="file" />` and add them
+   * to the list of files a user wants to update.
+   *
+   * > __Note:__ While this function returns immediately, various
+   * >           events are dispatched via the `dispatcher` provided
+   * >           to the constructor if images can be resized, a
+   * >           promise will be envoked
+   *
+   * @param {FileList} files
+   *
+   * @returns {Object}
+   */
+  processFiles (files) {
+    if ((files instanceof FileList) === false || files.length === 0) {
+      throw new Error(
+        'FileSelectData.processFiles() expects only argument to be '
+        + 'an instance of FileList containing at least one file',
+      );
+    }
+
+    const c = this._fileList.length;
+    const newFiles = [];
+
+    this._dispatch('processcount', files.length);
+
+    for (const fileData of files) {
+      newFiles.push(this._processSingleFile(fileData));
+    }
+
+    const diff = (this._fileList.length - c);
+
+    return {
+      ...this.getStatus(),
+      newFiles: files.length,
+      added: diff,
+      multi: diff > 1,
+    };
   }
 
   //  END:  General public methods
