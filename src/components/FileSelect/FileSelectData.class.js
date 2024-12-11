@@ -4,21 +4,20 @@ import {
   dummyDispatch,
   fileIsGood,
   fileIsOK,
-  getAllowedTypes,
   getEventTypes,
   getRightConfigValidateFunc,
   getUniqueFileName,
   getValidMaxFileCount,
-  getValidMaxImgPx,
-  getValidMaxSingleSize,
   getValidMaxTotalSize,
   isValidFileType,
+  overrideConfig,
   resetPos,
   rewriteConfigError,
   rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../utils/data-utils';
 import { nanoid } from 'nanoid';
+import FileSelectDataFile from './fileSelectDataFile.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -189,13 +188,15 @@ import { nanoid } from 'nanoid';
  *
  * @class FileSelectData
  *
- * @param {Dispatcher|null} dispatcher Function to be called to
- *                                     inform the client about
- *                                     things that happen while
- *                                     processing a file.
- * @param {Object|null}     config     Values to override the static
- *                                     (default) config values that
- *                                     control limits
+ * @param {imgProcessor|null} imgProcessor Object that can be used to
+ *                                         manipulate images
+ * @param {Dispatcher|null}   dispatcher   Function to be called to
+ *                                         inform the client about
+ *                                         things that happen while
+ *                                         processing a file.
+ * @param {Object|null}       config       Values to override the
+ *                                         static (default) config
+ *                                         values that control limits
  *
  * @method processFiles Process file(s) provided by
  *                      `<input type="file" />` and add them to the
@@ -299,6 +300,9 @@ import { nanoid } from 'nanoid';
  *                      for all files
  */
 export class FileSelectData {
+  // ----------------------------------------------------------------
+  // START: Define static properties
+
   static _greyscale = false;
   static _maxFileCount = 15;
   static _maxImgPx = 1500;
@@ -309,32 +313,9 @@ export class FileSelectData {
   static _defaultAllowed = [];
   static _jpegCompression = 0.85;
 
-  /**
-   * Function to dispatch events to the client.
-   *
-   * @property {Dispatcher} dispatch
-   */
-  _dispatch;
-
-  /**
-   * List of files (with metadata) the user has selected for upload
-   *
-   * @property {FileDataItem[]} fileList
-   */
-  _fileList;
-
-  /**
-   * The total size of all the files the user has selected for upload
-   * @property {number} totalSize
-   */
-  _totalSize;
-
-  /**
-   * The number of files still being processed
-   *
-   * @property {number}
-   */
-  _processingCount;
+  //  END:  Define static properties
+  // ----------------------------------------------------------------
+  // START: Define instance properties
 
   /**
    * List of allowed file types.
@@ -342,13 +323,6 @@ export class FileSelectData {
    * @property {Object[]}
    */
   _allowedTypes;
-
-  /**
-   * Log of errors thrown by ImageBlobResize
-   *
-   * @property {Error[]}
-   */
-  _log;
 
   /**
    * An object containing instance versions of the five static config values:
@@ -362,28 +336,58 @@ export class FileSelectData {
    *
    * @property {object}
    */
-  _config
+  _config;
 
-  constructor (dispatcher = null, config = null) {
-    this._fileList = [];
-    this._dispatch = (typeof dispatcher === 'function')
-      ? dispatcher
-      : dummyDispatch;
+  /**
+   * Function to dispatch events to the client.
+   *
+   * @property {Dispatcher} dispatch
+   */
+  _dispatch;
 
-    this._totalSize = 0;
-    this._processingCount = 0;
-    this._log = [];
+  /**
+   * List of files (with metadata) the user has selected for upload
+   *
+   * @property {FileDataItem[]} fileList
+   */
+  _fileList = [];
 
-    try {
-      this._setConfig(config);
-    } catch (e) {
-      throw Error(e.message);
-    }
-  }
+  /**
+   * @property
+   */
+  _imgProcessor;
 
-  //  END:
+  /**
+   * Log of errors thrown by ImageBlobResize
+   *
+   * @property {Error[]}
+   */
+  _log;
+
+  /**
+   * The number of files still being processed
+   *
+   * @property {number}
+   */
+  _processingCount = 0;
+
+  /**
+   * The total size of all the files the user has selected for upload
+   * @property {number} totalSize
+   */
+  _totalSize;
+
+  //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
+
+  /**
+   * Get the maximum pixel count (in either direction) currently
+   * allowed for images
+   *
+   * @returns {number}
+   */
+  static getGreyscale () { return FileSelectDataFile.greyscale(); }
 
   static getMaxFileCount () { return this._maxFileCount; }
 
@@ -393,14 +397,14 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  static getMaxImgPx () { return this._maxImgPx; }
+  static getMaxImgPx () { return FileSelectDataFile.maxImgPx(); }
 
   /**
    * Get the maximum byte size allowed for a single file
    *
    * @returns {number}
    */
-  static getMaxSingleSize () { return this._maxSingleSize; }
+  static getMaxSingleSize () { return FileSelectDataFile._maxSingleSize; }
 
   /**
    * Get the maximum total byte size allowed for all files
@@ -421,7 +425,7 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  static getNoResize () { return this._noResize; }
+  static getNoResize () { return this.noResize(); }
 
   /**
    * Get an object keyed on event name and containing the data type
@@ -458,10 +462,14 @@ export class FileSelectData {
     this._omitInvalid = true;
   }
 
-
+ /**
+  * Set default allowed file types
+  *
+  * @param {string} allowedTypes
+  */
   static setAllowedTypes (allowedTypes) {
     try {
-      this._defaultAllowed = getAllowedTypes(allowedTypes);
+      FileSelectDataFile.setAllowedTypes(allowedTypes);
     } catch (e) {
       throw Error(e.message);
     }
@@ -492,7 +500,7 @@ export class FileSelectData {
    */
   static setMaxImgPx (px) {
     try {
-      this._maxImgPx = getValidMaxImgPx(px);
+      FileSelectDataFile.setMaxImgPx(px);
     } catch (e) {
       throw Error(rewriteError(e.message));
     }
@@ -516,7 +524,7 @@ export class FileSelectData {
    */
   static setMaxSingleSize (max) {
     try {
-      this._maxSingleSize = getValidMaxSingleSize(max);
+      FileSelectDataFile.setMaxSingleSize(max);
     } catch (e) {
       throw new Error(rewriteError(e.message));
     }
@@ -535,39 +543,49 @@ export class FileSelectData {
     }
   }
 
-  //  END:  Static methods
+  //  END:  Static getter & setter methods
+  // ----------------------------------------------------------------
+  // START: Constructor method
+
+  constructor (imgProcessor = null, dispatcher = null, config = null) {
+    this._fileList = [];
+    this._dispatch = (typeof dispatcher === 'function')
+      ? dispatcher
+      : dummyDispatch;
+
+    this._totalSize = 0;
+    this._processingCount = 0;
+    this._log = [];
+    this._imgProcessor = imgProcessor;
+
+    try {
+      this._setConfig(config);
+    } catch (e) {
+      throw Error(e.message);
+    }
+  }
+
+  //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: private methods
 
   _setConfig (config) {
     this._config = {
-      defaultAllowed: FileSelectData._defaultAllowed,
-      greyScale: FileSelectData._greyScale,
-      jpegCompression: FileSelectData._jpegCompression,
+      defaultAllowed: FileSelectDataFile.defaultAllowed(),
+      greyScale: FileSelectDataFile.greyScale(),
+      jpegCompression: FileSelectDataFile.jpegCompression(),
       maxFileCount: FileSelectData._maxFileCount,
-      maxImgPx: FileSelectData._maxImgPx,
-      maxSingleSize: FileSelectData._maxSingleSize,
+      maxImgPx: FileSelectDataFile.maxImgPx(),
+      maxSingleSize: FileSelectDataFile.maxSingleSize(),
       maxTotalSize: FileSelectData._maxTotalSize,
       omitInvalid: FileSelectData._omitInvalid,
     };
 
-    if (isObj(config) === false) {
-      return false;
+    try {
+      this._config = overrideConfig(this._config, config);
+    } catch (error) {
+      throw Error(rewriteConfigError(error.message));
     }
-
-    for (const key of Object.keys(this._config)) {
-      if (typeof config[key] !== 'undefined') {
-        const func = getRightConfigValidateFunc(key);
-
-        try {
-          this._config[key] = func(config[key]);
-        } catch (e) {
-          throw Error(rewriteConfigError(e));
-        }
-      }
-    }
-
-    return true;
   }
 
   /**
@@ -600,21 +618,19 @@ export class FileSelectData {
     if (this._config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
-      const output = {
-        ...fileData,
-        id: nanoid(8),
-        postion: this._fileList.length,
-      };
-      this._fileList.push(output);
-      return output;
+      fileData.position = this._fileList.length;
+
+      this._fileList.push(fileData);
+
+      return true;
     }
+
+    return false;
   }
 
   _updateFile (fileData) {
     for (let a = 0; a < this._fileList.length; a += 1) {
-      if ((fileData.id !== null && this._fileList[a].id === fileData.id)
-        || (this._fileList[a].name === fileData.name)
-      ) {
+      if (this._fileList[a].isMatch(fileData.id, fileData.name)) {
         // This is a file we've already seen.
         // We'll just update it's postion and replace the previous
         // version.
@@ -655,31 +671,6 @@ export class FileSelectData {
     }
   }
 
-  /**
-   * Check whether this type of file is allowed.
-   *
-   * @param {FileDataItem} fileData File data object currently being
-   *                            processed
-   *
-   * @returns {boolean} TRUE if the file is not allowed.
-   *                    FALSE otherwise
-   */
-  _processInvalidFile (fileData) {
-    if (isValidFileType(fileData, this._allowedTypes) === true) {
-      return false;
-    }
-
-    output = this._addFileToList({
-      ...fileData,
-      invalid: true,
-      ok: false,
-    });
-
-    this._dispatch('invalid', fileData.name);
-
-    return true;
-  }
-
   _checkTooMany (name) {
     if (this.tooMany()) {
       this._dispatch(
@@ -694,18 +685,19 @@ export class FileSelectData {
   }
 
   _renameFile ({ id, name }, newName) {
-    for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].id === id) {
-        this._fileList[a].name = newName;
+    for (const fileData of this._fileList) {
+      if (fileData.isMatch(id, name)) {
+        fileData.name = newName;
         this._dispatch(
           'renamed',
           {
-            oldName: name,
+            id: fileData.id,
+            oldName: fileData.previousName,
             newName,
-            position: this._fileList[a].position,
+            position: fileData.position,
           },
         );
-        return this._fileList[a];
+        break;
       }
     }
   }
@@ -749,95 +741,37 @@ export class FileSelectData {
     this._dispatch('log', message);
   }
 
-  /**
-   * Check whether an file is too big. If so, do some extra work to
-   * inform the client about the issue.
-   *
-   * @param {FileDataItem} fileData    File data object currently
-   *                                   being processed
-   * @param {boolean}       resizeDone Whether or not this method is
-   *                                   being called after an image
-   *                                   resize action
-   * @returns {boolean} `TRUE` If the file was too large and could
-   *                    not be further processed. `FALSE` otherwise.
-   */
-  _processOverSizedFile (fileData, resizeDone = false) {
-    if (fileData.oversize === false || (fileData.isImage === true && resizeDone === false)) {
-      return false;
+  async _processSingleFileInner (fileData) {
+    this._dispatch('processing', fileData.name);
+
+    if (fileData.invalid === true) {
+      this._dispatch('invalid', fileData.name);
     }
 
-    let output = {
-      ...fileData,
-      oversize: true,
-      ok: false,
+    if (file.isOversized() === true) {
+      this._dispatch(
+        'oversize',
+        {
+          id: fileData.id,
+          name: fileData.name,
+          size: fileData.size,
+          max: this._config.maxSingleSize,
+        },
+      );
     }
 
-    output = this._addFileToList(output);
+    if (fileData.isImage === true) {
+      this._imageCount += 1;
 
-    this._dispatch(
-      'oversize',
-      {
-        id: output.id,
-        name: output.name,
-        size: output.size,
-        max: this._config.maxSingleSize,
-      },
-    );
+      if ( fileData.doResize() === true) {
+        this._processingCount += 1;
+        this._dispatch('processing', fileData.id);
 
-    return true;
-  }
+        await fileData.process(this._canvas);
 
-  _getImage (file) {
-    return new Promise((resolve) => {
-      const img = new Image();
-
-      img.onload(() => { resolve(img) });
-
-      img.src = file;
-    })
-  }
-
-  async _getAspectRatio (file) {
-    const img = await this._getImage(file);
-    const isPortrait = (img.height > img.width);
-    const isSquare = (img.height === img.width);
-
-    let ratio = 1;
-
-    if (isPortrait === true) {
-      if (img.height > this._config.maxImgPx) {
-        ratio = this._config.maxImgPx / img.height;
-      }
-    } else {
-      if (img.width > this._config.maxImgPx) {
-        ratio = this._config.maxImgPx / img.width;
+        this._dispatch('endprocessing', fileData.id);
       }
     }
-
-    return {
-      doResize: ratio !== 1,
-      height: img.height * ratio,
-      isPortrait,
-      isSquare,
-      ratio,
-      width: img.height * ratio,
-    }
-  }
-
-  _processImage (fileData) {
-    fileData.metadata = this._getAspectRatio(fileData.file);
-
-    if (fileData.metadata.doResize === false && fileData.size <= this._config.maxSingleSize) {
-      this._finaliseProcessing(fileData);
-      return false;
-    }
-
-    this._processingCount += 1;
-    this._imageCount
-
-    this._addFileToList(fileData);
-
-    return true;
   }
 
   /**
@@ -848,35 +782,37 @@ export class FileSelectData {
    * @returns {boolean} `TRUE` if the file could be added to the list.
    *                    `FALSE` otherwise
    */
-  _processSingleFile (file) {
-    const fileData = {
-      id: null,
-      ext: file.name.replace(/^.*?\.([a-z\d]+)$/i, ''),
-      file,
-      invalid: false,
-      isImage: file.type.startsWith('image/'),
-      lastModified: file.lastModifiedDate,
-      metadata: null,
-      mime: file.type,
-      name: getUniqueFileName(file.name),
-      ogName: file.name,
-      ok: true,
-      oversize: (file.size > this._config.maxSingleSize),
-      position: -1,
-      processing: false,
-      size: file.size,
-    };
+  async _processSingleFile (file) {
+    if (this._omitInvalid === false || (this.tooBig() === false && this.tooMany() === false)) {
 
-    this._dispatch('processing', fileData.name);
+      const fileData = FileSelectDataFile.getFileData(file);
 
-    if (this._processInvalidFile(fileData) === true
-      || this._processOverSizedFile(fileData) === true
-    ) {
-      this._finaliseProcessing(fileData);
-      return false;
+      if (this._omitInvalid === false || fileData.ok === true) {
+        this._addFileToList(fileData);
+
+        this._processSingleFileInner(fileData);
+
+        return true;
+      } else {
+        this._dispatch('notadded', {
+          name: file.name,
+          cannotadd: false,
+          oversize: fileData.isOversized(),
+          invalid: fileData.invalid,
+        });
+      }
     }
 
-    return this._processImage(fileData);
+    this._dispatch('notadded', {
+      name: file.name,
+      cannotadd: true,
+      tooBig: this.tooBig(),
+      tooMany: this.tooMany(),
+      size: this._totalSize,
+      count: this._fileList.length,
+    });
+
+    return false;
   }
 
   //  END:  private methods
@@ -1339,6 +1275,24 @@ export class FileSelectData {
       added: diff,
       multi: diff > 1,
     };
+  }
+
+  replaceFile(id, file) {
+    for (let a = 0; a < this.fileList.length; a += 1) {
+      if (this.fileList[a].isMatch(id, file.name)) {
+        const id = this.fileList[a].id
+        this.fileList[a] = FileSelectDataFile.getFileData(file);
+        this.fileList[a].id = id;
+
+        _processSingleFileInner(this.fileList[a]);
+        return true;
+      }
+    }
+
+    throw new Error(
+      `Could not replace file matching ID: "${id}" (name: `
+      + '"${file.name}) because original file could not be found',
+    );
   }
 
   //  END:  General public methods

@@ -1,3 +1,4 @@
+import { isObj } from '../../utils/data-utils';
 import mimeTypes from './mimeTypes';
 
 export const dummyDispatch = (_eventName, _data) => {};
@@ -23,6 +24,26 @@ export const isNum = (input, min = null, max = null) => {
 
   return true;
 }
+
+export const overrideConfig = (defaultConfig, config) => {
+  const output = { ...defaultConfig };
+
+  if (isObj(config) === true) {
+    for (const key of Object.keys(output)) {
+      if (typeof config[key] !== 'undefined') {
+        const func = getRightConfigValidateFunc(key);
+
+        try {
+          output[key] = func(config[key]);
+        } catch (e) {
+          throw Error(rewriteConfigError(e));
+        }
+      }
+    }
+  }
+
+  return output;
+};
 
 /**
  * Get list of allowed file types separated list of file extensions
