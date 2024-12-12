@@ -1,23 +1,19 @@
-import imageBlobReduce from 'image-blob-reduce';
 import {
   cloneFileDataItem,
   dummyDispatch,
   fileIsGood,
   fileIsOK,
   getEventTypes,
-  getRightConfigValidateFunc,
-  getUniqueFileName,
   getValidMaxFileCount,
   getValidMaxTotalSize,
-  isValidFileType,
   overrideConfig,
   resetPos,
   rewriteConfigError,
   rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../utils/data-utils';
-import { nanoid } from 'nanoid';
 import FileSelectDataFile from './fileSelectDataFile.class';
+import ImageProcessor from './ImageProcessor.photon.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -303,15 +299,10 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Define static properties
 
-  static _greyscale = false;
-  static _maxFileCount = 15;
-  static _maxImgPx = 1500;
-  static _maxSingleSize = 15728640;
-  static _maxTotalSize = 47185920;
-  static _omitInvalid = true;
-  static _noResize = false;
-  static _defaultAllowed = [];
-  static _jpegCompression = 0.85;
+  static #maxFileCount = 15;
+  static #maxTotalSize = 47185920;
+  static #omitInvalid = true;
+  static #noResize = false;
 
   //  END:  Define static properties
   // ----------------------------------------------------------------
@@ -322,7 +313,7 @@ export class FileSelectData {
    *
    * @property {Object[]}
    */
-  _allowedTypes;
+  #allowedTypes;
 
   /**
    * An object containing instance versions of the five static config values:
@@ -336,46 +327,49 @@ export class FileSelectData {
    *
    * @property {object}
    */
-  _config;
+  #config;
 
   /**
    * Function to dispatch events to the client.
    *
    * @property {Dispatcher} dispatch
    */
-  _dispatch;
+  #dispatch;
 
   /**
    * List of files (with metadata) the user has selected for upload
    *
    * @property {FileDataItem[]} fileList
    */
-  _fileList = [];
+  #fileList = [];
 
   /**
    * @property
    */
-  _imgProcessor;
+  #imgProcessor;
+  #imageCount = 0;
 
   /**
    * Log of errors thrown by ImageBlobResize
    *
    * @property {Error[]}
    */
-  _log;
+  #_log = [];
 
   /**
    * The number of files still being processed
    *
    * @property {number}
    */
-  _processingCount = 0;
+  #processingCount = 0;
 
   /**
    * The total size of all the files the user has selected for upload
    * @property {number} totalSize
    */
-  _totalSize;
+  #totalSize;
+
+
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -387,9 +381,12 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  static getGreyscale () { return FileSelectDataFile.greyscale(); }
+  static getGreyscale () { return ImageProcessor.getGreyscale(); }
+  static getJpegCompression () {
+    return ImageProcessor.getJpegCompression();
+  }
 
-  static getMaxFileCount () { return this._maxFileCount; }
+  static getMaxFileCount () { return this.#maxFileCount; }
 
   /**
    * Get the maximum pixel count (in either direction) currently
@@ -397,35 +394,35 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  static getMaxImgPx () { return FileSelectDataFile.maxImgPx(); }
+  static getMaxImgPx () { return ImageProcessor.getMaxImgPx(); }
 
   /**
    * Get the maximum byte size allowed for a single file
    *
    * @returns {number}
    */
-  static getMaxSingleSize () { return FileSelectDataFile._maxSingleSize; }
+  static getMaxSingleSize () { return FileSelectDataFile.maxSingleSize(); }
 
   /**
    * Get the maximum total byte size allowed for all files
    *
    * @returns {number}
    */
-  static getMaxTotalSize () { return this._maxTotalSize; }
+  static getMaxTotalSize () { return this.#maxTotalSize; }
 
   /**
    * Get the omit invalid state
    *
    * @returns {boolean}
    */
-  static getOmitInvalid () { return this._omitInvalid; }
+  static getOmitInvalid () { return this.#omitInvalid; }
 
   /**
    * Get the no resize state
    *
    * @returns {boolean}
    */
-  static getNoResize () { return this.noResize(); }
+  static getNoResize () { return this.getNoResize(); }
 
   /**
    * Get an object keyed on event name and containing the data type
@@ -445,7 +442,7 @@ export class FileSelectData {
    * @returns {void}
    */
   static keepInvalid () {
-    this._omitInvalid = false;
+    this.#omitInvalid = false;
   }
 
   /**
@@ -459,7 +456,7 @@ export class FileSelectData {
    * @returns {void}
    */
   static omitInvalid () {
-    this._omitInvalid = true;
+    this.#omitInvalid = true;
   }
 
  /**
@@ -484,7 +481,7 @@ export class FileSelectData {
    */
   static setMaxFileCount (count) {
     try {
-      this._maxFileCount = getValidMaxFileCount(count);
+      this.#maxFileCount = getValidMaxFileCount(count);
     } catch (e) {
       throw Error(rewriteError(e.message));
     }
@@ -537,7 +534,7 @@ export class FileSelectData {
    */
   static setMaxTotalSize (max) {
     try {
-      this._maxTotalSize = getValidMaxTotalSize(max);
+      this.#maxTotalSize = getValidMaxTotalSize(max);
     } catch (e) {
       throw new Error(rewriteError(e.message));
     }
@@ -547,42 +544,42 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor (imgProcessor = null, dispatcher = null, config = null) {
-    this._fileList = [];
-    this._dispatch = (typeof dispatcher === 'function')
+  constructor (canvas = null, dispatcher = null, config = null) {
+    this.#fileList = [];
+    this.#dispatch = (typeof dispatcher === 'function')
       ? dispatcher
       : dummyDispatch;
 
-    this._totalSize = 0;
-    this._processingCount = 0;
-    this._log = [];
-    this._imgProcessor = imgProcessor;
+    this.#totalSize = 0;
+    this.#processingCount = 0;
+    this.#_log = [];
 
     try {
-      this._setConfig(config);
+      this.#setConfig(config);
     } catch (e) {
       throw Error(e.message);
     }
+    this.#imgProcessor = new ImageProcessor(canvas, this.#config);
   }
 
   //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: private methods
 
-  _setConfig (config) {
-    this._config = {
+  #setConfig (config) {
+    this.#config = {
       defaultAllowed: FileSelectDataFile.defaultAllowed(),
       greyScale: FileSelectDataFile.greyScale(),
       jpegCompression: FileSelectDataFile.jpegCompression(),
-      maxFileCount: FileSelectData._maxFileCount,
+      maxFileCount: FileSelectData.#maxFileCount,
       maxImgPx: FileSelectDataFile.maxImgPx(),
       maxSingleSize: FileSelectDataFile.maxSingleSize(),
-      maxTotalSize: FileSelectData._maxTotalSize,
-      omitInvalid: FileSelectData._omitInvalid,
+      maxTotalSize: FileSelectData.#maxTotalSize,
+      omitInvalid: FileSelectData.#omitInvalid,
     };
 
     try {
-      this._config = overrideConfig(this._config, config);
+      this.#config = overrideConfig(this.#config, config);
     } catch (error) {
       throw Error(rewriteConfigError(error.message));
     }
@@ -603,24 +600,24 @@ export class FileSelectData {
    *                         FALSE if it wasn't added and
    *                         NULL if it replaced an existing file.
    */
-  _addFileToList (fileData) {
-    if (this._config.omitInvalid === true && fileData.ok === false) {
+  #addFileToList (fileData) {
+    if (this.#config.omitInvalid === true && fileData.ok === false) {
       return false;
     }
 
-    if (this._updateFile(fileData) === true) {
+    if (this.#updateFile(fileData) === true) {
       return null;
     }
 
     // Only add new files if we are still under the maximum total
     // upload size AND the maximum upload count OR we don't care
     // about invalid files
-    if (this._config.omitInvalid === false
+    if (this.#config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
-      fileData.position = this._fileList.length;
+      fileData.position = this.#fileList.length;
 
-      this._fileList.push(fileData);
+      this.#fileList.push(fileData);
 
       return true;
     }
@@ -628,14 +625,14 @@ export class FileSelectData {
     return false;
   }
 
-  _updateFile (fileData) {
-    for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].isMatch(fileData.id, fileData.name)) {
+  #updateFile (fileData) {
+    for (let a = 0; a < this.#fileList.length; a += 1) {
+      if (this.#fileList[a].isMatch(fileData.id, fileData.name)) {
         // This is a file we've already seen.
         // We'll just update it's postion and replace the previous
         // version.
         fileData.position = a; // eslint-disable-line no-param-reassign
-        this._fileList[a] = fileData;
+        this.#fileList[a] = fileData;
         return true;
       }
     }
@@ -651,44 +648,44 @@ export class FileSelectData {
    *
    * @returns {void}
    */
-  _calculateTotal (fileData) {
+  #calculateTotal (fileData) {
     let sum = 0;
     for (const _file in this.fileList) {
       sum += _file.size
     }
 
-    this._totalSize = sum;
+    this.#totalSize = sum;
 
     if (this.tooBig() === true) {
-      this._dispatch(
+      this.#dispatch(
         'toobig',
         {
           name: fileData.name,
-          size: this._config.totalSize,
-          max: this._config.maxTotalSize,
+          size: this.#config.totalSize,
+          max: this.#config.maxTotalSize,
         },
       );
     }
   }
 
-  _checkTooMany (name) {
+  #checkTooMany (name) {
     if (this.tooMany()) {
-      this._dispatch(
+      this.#dispatch(
         'toomany',
         {
           name,
-          count: this._fileList.length,
-          max: this._config.maxFileCount,
+          count: this.#fileList.length,
+          max: this.#config.maxFileCount,
         },
       );
     }
   }
 
-  _renameFile ({ id, name }, newName) {
-    for (const fileData of this._fileList) {
+  #renameFile ({ id, name }, newName) {
+    for (const fileData of this.#fileList) {
       if (fileData.isMatch(id, name)) {
         fileData.name = newName;
-        this._dispatch(
+        this.#dispatch(
           'renamed',
           {
             id: fileData.id,
@@ -711,67 +708,73 @@ export class FileSelectData {
    *
    * @returns {void}
    */
-  _finaliseProcessing (fileData, inc = 0, newName = null) {
-    this._processingCount -= inc;
+  #finaliseProcessing (fileData, inc = 0, newName = null) {
+    this.#processingCount -= inc;
 
     if (typeof newName === 'string') {
-      this._renameFile(output, newName);
+      this.#renameFile(output, newName);
     }
 
-    const output = this._updateFile({
+    const output = this.#updateFile({
       ...fileData,
       processing: false,
     });
 
-    this._dispatch('complete', { id: output.id, name: output.name, pos: output.position });
+    this.#dispatch('complete', { id: output.id, name: output.name, pos: output.position });
 
-    this._checkTooMany(output.name);
+    this.#checkTooMany(output.name);
 
-    this._calculateTotal();
+    this.#calculateTotal();
 
-    this._dispatch('allcomplete', (this._processingCount === 0));
+    this.#dispatch('allcomplete', (this.#processingCount === 0));
   }
 
-  _log (message) {
-    context._log.push({
+  #log (message) {
+    context.#_log.push({
       time: Date.now(),
       message,
     });
 
-    this._dispatch('log', message);
+    this.#dispatch('log', message);
   }
 
-  async _processSingleFileInner (fileData) {
-    this._dispatch('processing', fileData.name);
+  async #processImage (fileData) {
+    if (fileData.isImage === true) {
+      this.#imageCount += 1;
+      inc = 1;
+
+      if ( fileData.doResize() === true) {
+        this.#processingCount += 1;
+        this.#dispatch('processing', fileData.id);
+
+        await fileData.process(this.#imgProcessor);
+
+        this.#dispatch('endprocessing', fileData.id);
+        this.#processingCount -= 1;
+      }
+    }
+  }
+
+  async #processSingleFileInner (fileData) {
+    this.#dispatch('processing', fileData.name);
 
     if (fileData.invalid === true) {
-      this._dispatch('invalid', fileData.name);
+      this.#dispatch('invalid', fileData.name);
     }
 
     if (file.isOversized() === true) {
-      this._dispatch(
+      this.#dispatch(
         'oversize',
         {
           id: fileData.id,
           name: fileData.name,
           size: fileData.size,
-          max: this._config.maxSingleSize,
+          max: this.#config.maxSingleSize,
         },
       );
     }
 
-    if (fileData.isImage === true) {
-      this._imageCount += 1;
-
-      if ( fileData.doResize() === true) {
-        this._processingCount += 1;
-        this._dispatch('processing', fileData.id);
-
-        await fileData.process(this._canvas);
-
-        this._dispatch('endprocessing', fileData.id);
-      }
-    }
+    this.#processImage(fileData);
   }
 
   /**
@@ -782,19 +785,19 @@ export class FileSelectData {
    * @returns {boolean} `TRUE` if the file could be added to the list.
    *                    `FALSE` otherwise
    */
-  async _processSingleFile (file) {
-    if (this._omitInvalid === false || (this.tooBig() === false && this.tooMany() === false)) {
+  async #processSingleFile (file) {
+    if (this.#config.omitInvalid === false || (this.tooBig() === false && this.tooMany() === false)) {
 
       const fileData = FileSelectDataFile.getFileData(file);
 
-      if (this._omitInvalid === false || fileData.ok === true) {
-        this._addFileToList(fileData);
+      if (this.#config.omitInvalid === false || fileData.ok === true) {
+        this.#addFileToList(fileData);
 
-        this._processSingleFileInner(fileData);
+        this.#processSingleFileInner(fileData);
 
         return true;
       } else {
-        this._dispatch('notadded', {
+        this.#dispatch('notadded', {
           name: file.name,
           cannotadd: false,
           oversize: fileData.isOversized(),
@@ -803,13 +806,13 @@ export class FileSelectData {
       }
     }
 
-    this._dispatch('notadded', {
+    this.#dispatch('notadded', {
       name: file.name,
       cannotadd: true,
       tooBig: this.tooBig(),
       tooMany: this.tooMany(),
-      size: this._totalSize,
-      count: this._fileList.length,
+      size: this.#totalSize,
+      count: this.#fileList.length,
     });
 
     return false;
@@ -849,13 +852,13 @@ export class FileSelectData {
    */
   getAllFiles (onlyGood = null) {
     if (onlyGood === null) {
-      return this._fileList.map(cloneFileDataItem);
+      return this.#fileList.map(cloneFileDataItem);
     }
 
-    return this._fileList.filter(fileIsGood(onlyGood)).map(cloneFileDataItem);
+    return this.#fileList.filter(fileIsGood(onlyGood)).map(cloneFileDataItem);
   }
 
-  getAllFilesRaw () { return this._fileList; }
+  getAllFilesRaw () { return this.#fileList; }
 
   /**
    * Get a list of only the bad files (and metadata)
@@ -869,7 +872,7 @@ export class FileSelectData {
    *
    * @returns {Dispatcher}
    */
-  getDispatch () { return this._dispatch; }
+  getDispatch () { return this.#dispatch; }
 
   /**
    * Get the number of files in this instance
@@ -884,11 +887,11 @@ export class FileSelectData {
    */
   getFileCount (onlyGood = null) {
     if (onlyGood === null) {
-      return this._fileList.length;
+      return this.#fileList.length;
     }
 
     let output = 0;
-    for (const fileData of this._fileList) {
+    for (const fileData of this.#fileList) {
       if (fileData.ok === onlyGood) {
         output += 1;
       }
@@ -917,10 +920,10 @@ export class FileSelectData {
 
     return {
       badFiles,
-      count: this._fileList.length,
+      count: this.#fileList.length,
       ok,
-      processing: this._processingCount,
-      size: this._totalSize,
+      processing: this.#processingCount,
+      size: this.#totalSize,
       tooBig,
       tooMany,
     };
@@ -946,10 +949,10 @@ export class FileSelectData {
    */
   hasFiles (onlyGood = null) {
     if (onlyGood === null) {
-      return (this._fileList.length > 0);
+      return (this.#fileList.length > 0);
     }
 
-    for (const fileData of this._fileList) {
+    for (const fileData of this.#fileList) {
       if (fileData.ok === onlyGood) {
         return true;
       }
@@ -978,14 +981,14 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  isProcessing () { return this._processingCount > 0; }
+  isProcessing () { return this.#processingCount > 0; }
 
   /**
    * Get the maximum number of files allowed
    *
    * @returns {number}
    */
-  maxFiles () { return this._config.maxFileCount; }
+  maxFiles () { return this.#config.maxFileCount; }
 
   /**
    * Get the maximum pixel count (in either direction) currently
@@ -993,28 +996,28 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  maxPx () { return this._config.maxImgPx; }
+  maxPx () { return this.#config.maxImgPx; }
 
   /**
    * Get the maximum byte size allowed for a single file
    *
    * @returns {number}
    */
-  maxSingleSize () { return this._config.maxSingleSize; }
+  maxSingleSize () { return this.#config.maxSingleSize; }
 
   /**
    * Get the maximum total byte size allowed for all files
    *
    * @returns {number}
    */
-  maxTotalSize () { return this._config.maxTotalSize; }
+  maxTotalSize () { return this.#config.maxTotalSize; }
 
   /**
    * Get the no resize state
    *
    * @returns {boolean}
    */
-  noResize () { return FileSelectData._noResize; }
+  noResize () { return FileSelectData.#noResize; }
 
   /**
    * Whether or not it would be OK to upload the selected files as is
@@ -1025,7 +1028,7 @@ export class FileSelectData {
     return (this.tooBig() === false
       && this.tooMany() === false
       && this.hasBadFiles() === false
-      && this._fileList.length > 0);
+      && this.#fileList.length > 0);
   }
 
   /**
@@ -1033,7 +1036,7 @@ export class FileSelectData {
    *
    * @returns {boolean}
    */
-  omitInvalid() { return this._config.omitInvalid; }
+  omitInvalid() { return this.#config.omitInvalid; }
 
   /**
    * Whether or not the total size of selected files is larger than
@@ -1042,7 +1045,7 @@ export class FileSelectData {
    * @returns {boolean}
    */
   tooBig () {
-    return (this._totalSize > this._config.maxTotalSize);
+    return (this.#totalSize > this.#config.maxTotalSize);
   }
 
   /**
@@ -1051,7 +1054,7 @@ export class FileSelectData {
    * @returns {boolean}
    */
   tooMany () {
-    return (this._fileList.length > this._config.maxFileCount);
+    return (this.#fileList.length > this.#config.maxFileCount);
   }
 
   /**
@@ -1059,7 +1062,7 @@ export class FileSelectData {
    *
    * @returns {number}
    */
-  totalSize () { return this._totalSize; }
+  totalSize () { return this.#totalSize; }
 
   //  END:  Public getter methods
   // ----------------------------------------------------------------
@@ -1079,31 +1082,34 @@ export class FileSelectData {
    * @returns {true}
    */
   clean (deleteExcess = false) {
-    this._fileList = this._fileList.filter(fileIsOK);
+    this.#fileList = this.#fileList.filter(fileIsOK);
 
     // Update the total upload size
-    this._calculateTotal();
+    this.#calculateTotal();
 
     if (deleteExcess !== true) {
       return true;
     }
 
     if (this.tooMany()) {
-      const diff = this._fileList.length - this._config.maxFileCount;
-      this._fileList = this._fileList.splice(this._config.maxFileCount - 1, diff);
+      const diff = this.#fileList.length - this.#config.maxFileCount;
+      this.#fileList = this.#fileList.splice(this.#config.maxFileCount - 1, diff);
     }
 
     if (this.tooBig() === true) {
-      for (let a = this._fileList.length - 1; a >= 0; a -= 1) {
-        this._fileList.pop();
+      for (let a = this.#fileList.length - 1; a >= 0; a -= 1) {
+        this.#fileList.pop();
 
-        this._calculateTotal();
+        this.#calculateTotal();
         if (this.tooBig() === false) {
           return true;
         }
       }
     }
   }
+
+  getLog () { return this.#_log; }
+  clearLog () { this.#_log = []; }
 
   /**
    * Remove a file from the list of files selected by the user
@@ -1120,8 +1126,8 @@ export class FileSelectData {
     if (typeof outGoing !== 'undefined') {
       this.fileList = this.fileList.filter((fileData) => (fileData.id !== id)).map(resetPos);
 
-      this._calculateTotal();
-      this._checkTooMany(outGoing.name);
+      this.#calculateTotal();
+      this.#checkTooMany(outGoing.name);
     }
 
     return (this.fileList.length < l);
@@ -1143,7 +1149,7 @@ export class FileSelectData {
   getFileList (onlyGood = null) {
     const output = new DataTransfer();
 
-    for (const fileData of this._fileList) {
+    for (const fileData of this.#fileList) {
       if (onlyGood === null || (onlyGood === fileData.ok)) {
         output.items.add(fileData.file);
       }
@@ -1175,7 +1181,7 @@ export class FileSelectData {
     const promises = [];
     let form = new FormData();
 
-    for (const fileData of this._fileList) {
+    for (const fileData of this.#fileList) {
       if (includeBad === true || fileData.ok === true) {
         promises.push(Promise.resolve(form.append('File', fileData)));
       }
@@ -1229,7 +1235,7 @@ export class FileSelectData {
         this.fileList.splice(from, 1);
         this.fileList.splice(to, 0, item);
 
-        this.fileList = this._fileList.map(resetPos);
+        this.fileList = this.#fileList.map(resetPos);
         return true;
       }
     }
@@ -1258,16 +1264,16 @@ export class FileSelectData {
       );
     }
 
-    const c = this._fileList.length;
+    const c = this.#fileList.length;
     const newFiles = [];
 
-    this._dispatch('processcount', files.length);
+    this.#dispatch('processcount', files.length);
 
     for (const fileData of files) {
-      newFiles.push(this._processSingleFile(fileData));
+      newFiles.push(this.#processSingleFile(fileData));
     }
 
-    const diff = (this._fileList.length - c);
+    const diff = (this.#fileList.length - c);
 
     return {
       ...this.getStatus(),
@@ -1284,7 +1290,7 @@ export class FileSelectData {
         this.fileList[a] = FileSelectDataFile.getFileData(file);
         this.fileList[a].id = id;
 
-        _processSingleFileInner(this.fileList[a]);
+        this.#processSingleFileInner(this.fileList[a]);
         return true;
       }
     }

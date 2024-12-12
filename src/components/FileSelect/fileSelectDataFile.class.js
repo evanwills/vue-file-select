@@ -21,14 +21,12 @@ export class FileSelectDataFile {
   // START: Define instance properties
 
   _config;
-  aspectRatio = null;
+  format = null;
   ext;
   file;
   id = null;
   invalid = false;
-  isSquare = null;
-  isPortrait
-  isImage;
+  isImage = false;
   height = null;
   width = null;
   mime;
@@ -160,7 +158,6 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Private method
 
-
   _setConfig (config) {
     // Preset config with default values
 
@@ -208,16 +205,20 @@ export class FileSelectDataFile {
     return this.file.lastModifiedDate;
   }
 
+  isImg () {
+    return (this.isImage === true && this.invalid === false);
+  }
+
+  isMatch (id, name) {
+    return (this.id === id || this.name === name);
+  }
+
   isOversized () {
     if (this.processing === true) {
       return false;
     }
 
     return (file.size > this._config.maxSingleSize);
-  }
-
-  isMatch (id, name) {
-    return (this.id === id || this.name === name);
   }
 
   /**

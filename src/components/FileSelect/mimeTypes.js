@@ -1,3 +1,24 @@
+const jpeg = {
+  ext: 'jpeg',
+  mime: 'image/jpeg',
+  name: 'JPEG',
+  type: 'image',
+};
+
+const tiff = {
+  ext: 'tif',
+  mime: 'image/tiff',
+  name: 'tif',
+  type: 'image',
+};
+
+const midi = {
+  ext: 'midi',
+  mime: 'audio/x-midi',
+  name: 'MIDI',
+  type: 'audio',
+};
+
 /**
  * List of possible acceptible file types user can upload
  *
@@ -9,34 +30,16 @@
  * @var {object} fileTypes
  */
 export default {
-  png: {
-    ext: 'png',
-    mime: 'image/png',
-    name: 'PNG',
+  bmp: {
+    ext: 'bmp',
+    mime: 'image/bmp',
+    name: 'Bitmap',
     type: 'image',
   },
-  jpg: {
-    ext: 'jpeg',
-    mime: 'image/jpeg',
-    name: 'JPEG',
-    type: 'image',
-  },
-  jpeg: {
-    ext: 'jpeg',
-    mime: 'image/jpeg',
-    name: 'JPEG',
-    type: 'image',
-  },
-  webp: {
-    ext: 'webp',
-    mime: 'image/webp',
-    name: 'WebP',
-    type: 'image',
-  },
-  pdf: {
-    ext: 'pdf',
-    mime: 'application/pdf',
-    name: 'PDF',
+  csv: {
+    ext: 'csv',
+    mime: 'text/csv',
+    name: 'CSV',
     type: 'document',
   },
   doc: {
@@ -50,6 +53,37 @@ export default {
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     name: 'Microsoft Word',
     type: 'document',
+  },
+  epub: {
+    ext: 'epub',
+    mime: 'application/epub+zip',
+    name: 'EPub',
+    type: 'document',
+  },
+  gif: {
+    ext: 'gif',
+    mime: 'image/gif',
+    name: 'Gif',
+    type: 'image',
+  },
+  jpg: jpeg, jpeg,
+  ico: {
+    ext: 'ico',
+    mime: 'image/vnd.microsoft.icon',
+    name: 'Icon',
+    type: 'image',
+  },
+  pdf: {
+    ext: 'pdf',
+    mime: 'application/pdf',
+    name: 'PDF',
+    type: 'document',
+  },
+  png: {
+    ext: 'png',
+    mime: 'image/png',
+    name: 'PNG',
+    type: 'image',
   },
   rtf: {
     ext: 'rtf',
@@ -88,48 +122,7 @@ export default {
     name: 'Kindle',
     type: 'document',
   },
-  bmp: {
-    ext: 'bmp',
-    mime: 'image/bmp',
-    name: 'Bitmap',
-    type: 'image',
-  },
-  csv: {
-    ext: 'csv',
-    mime: 'text/csv',
-    name: 'CSV',
-    type: 'document',
-  },
-  epub: {
-    ext: 'epub',
-    mime: 'application/epub+zip',
-    name: 'EPub',
-    type: 'document',
-  },
-  gif: {
-    ext: 'gif',
-    mime: 'image/gif',
-    name: 'Gif',
-    type: 'image',
-  },
-  ico: {
-    ext: 'ico',
-    mime: 'image/vnd.microsoft.icon',
-    name: 'Icon',
-    type: 'image',
-  },
-  mid: {
-    ext: 'mid',
-    mime: 'audio/midi',
-    name: 'MIDI',
-    type: 'audio',
-  },
-  midi: {
-    ext: 'midi',
-    mime: 'audio/x-midi',
-    name: 'MIDI',
-    type: 'audio',
-  },
+  mid: midi, midi,
   mp3: {
     ext: 'mp3',
     mime: 'audio/mpeg',
@@ -178,18 +171,7 @@ export default {
     name: 'Powerpoint',
     type: 'document',
   },
-  tif: {
-    ext: 'tif',
-    mime: 'image/tiff',
-    name: 'tif',
-    type: 'image',
-  },
-  tiff: {
-    ext: 'tiff',
-    mime: 'image/tiff',
-    name: 'tiff',
-    type: 'image',
-  },
+  tif: tiff, tiff,
   wav: {
     ext: 'wav',
     mime: 'audio/wav',
@@ -207,6 +189,12 @@ export default {
     mime: 'video/webm',
     name: 'webm',
     type: 'video',
+  },
+  webp: {
+    ext: 'webp',
+    mime: 'image/webp',
+    name: 'WebP',
+    type: 'image',
   },
   xls: {
     ext: 'xls',
