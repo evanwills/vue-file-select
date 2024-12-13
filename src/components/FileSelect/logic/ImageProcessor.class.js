@@ -1,6 +1,5 @@
 import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
 import FileSelectDataFile from "./fileSelectDataFile.class";
-import { getImageMetadata } from "./image-processor-utils";
 
 export class ImageProcessor {
   // ----------------------------------------------------------------

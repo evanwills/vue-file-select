@@ -8,15 +8,15 @@ import {
   isValidFileType,
   overrideConfig,
 } from './file-select-utils';
-import FileSelectDataImage from './fileSelectDataImage.class';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
+import ImageProcessor from './ImageProcessor.class';
 
 export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Define static properties
 
-  static _defaultAllowed = [];
-  static _maxSingleSize = 15728640;
+  static #defaultAllowed = [];
+  static #maxSingleSize = 15728640;
 
   //  END:  Define static properties
   // ----------------------------------------------------------------
@@ -43,38 +43,26 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
-  static defaultAllowed () { return this._defaultAllowed; }
-  static greyscale () { return this._greyScale; }
-  static jpegCompression () { return this._jpegCompression; }
-  static maxImgPx () { return this._maxImgPx; }
-  static maxSingleSize () { return this._maxSingleSize; }
-  static noResize () { return FileSelectDataImage.noResize(); }
+  static defaultAllowed () { return this.#defaultAllowed; }
+  static greyscale () { return ImageProcessor.getGreyscale(); }
+  static jpegCompression () { return ImageProcessor.getJpegCompression(); }
+  static maxImgPx () { return ImageProcessor.getMaxImgPx(); }
+  static maxSingleSize () { return this.#maxSingleSize; }
+  static noResize () { return ImageProcessor.getNoResize(); }
 
-  static setGreyscale (greyscale) {
-    if (typeof greyscale === 'boolean') {
-      this._greyScale = greyscale;
-    }
-
-    if (typeof this._greyScale !== 'boolean') {
-      this._greyScale = false;
-    }
-  }
+  static setGreyscale (greyscale) { ImageProcessor.setGreyscale(greyscale); }
 
   static setJpegCompression (value) {
     try {
-      this._jpegCompression = getValidJpegCompression(value);
+      ImageProcessor.setJpegCompression(value);
     } catch (e) {
-      if (typeof this._jpegCompression !== 'number') {
-        this._jpegCompression = 0.85;
-      }
-
       throw Error(e.message);
     }
   }
 
   static setAllowedTypes (allowedTypes) {
     try {
-      this._defaultAllowed = getAllowedTypes(allowedTypes);
+      this.#defaultAllowed = getAllowedTypes(allowedTypes);
     } catch (e) {
       throw Error(e.message);
     }
@@ -90,7 +78,7 @@ export class FileSelectDataFile {
    */
   static setMaxImgPx (px) {
     try {
-      this._maxImgPx = getValidMaxImgPx(px);
+      ImageProcessor.setMaxImgPx(px);
     } catch (e) {
       throw Error(rewriteError(e.message));
     }
@@ -114,7 +102,7 @@ export class FileSelectDataFile {
    */
   static setMaxSingleSize (max) {
     try {
-      this._maxSingleSize = getValidMaxSingleSize(max);
+      this.#maxSingleSize = getValidMaxSingleSize(max);
     } catch (e) {
       throw new Error(rewriteError(e.message));
     }
@@ -158,8 +146,8 @@ export class FileSelectDataFile {
     // Preset config with default values
 
     this._config = {
-      defaultAllowed: FileSelectDataFile._defaultAllowed,
-      maxSingleSize: FileSelectDataFile._maxSingleSize,
+      defaultAllowed: FileSelectDataFile.#defaultAllowed,
+      maxSingleSize: FileSelectDataFile.#maxSingleSize,
     };
 
     try {
@@ -317,7 +305,12 @@ export class FileSelectDataFile {
 
   async setImageMetadata (force = false) {
     if (this.isImage === true && (this.isImage === null || force === true)) {
-      this.imgMeta = await getImageMetadata(this.file);
+      const tmp = await getImageMetadata(this.file);
+
+      this.imgMeta = {
+        ...this.imgMeta,
+        ...tmp,
+      }
 
       if (force === false) {
         this.imgMeta.ogHeight = this.imgMeta.height

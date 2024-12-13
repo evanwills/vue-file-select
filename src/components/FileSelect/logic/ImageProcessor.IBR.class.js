@@ -11,7 +11,6 @@ export class IBRimageProcessor {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
-  #canvas = null;
   _config = null;
 
   //  END:  Define instance properties
