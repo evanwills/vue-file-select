@@ -25,6 +25,13 @@ export const isNum = (input, min = null, max = null) => {
   return true;
 }
 
+/**
+ *
+ * @param {File} file
+ * @returns {string}
+ */
+export const getFileExtension = (file) => file.name.replace(/^.*?\.([a-z\d]+)$/i, '');
+
 export const overrideConfig = (defaultConfig, config) => {
   const output = { ...defaultConfig };
 
