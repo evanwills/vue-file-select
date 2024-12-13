@@ -83,7 +83,7 @@ export class IBRimageProcessor {
     }
   }
 
-  _processInner (fileData) {
+  _processInner (fileData, _resizeRatio) {
     fileData = super(fileData);
     if (IBRimageProcessor.#processor === null) {
       IBRimageProcessor.#processor = new imageBlobReduce();

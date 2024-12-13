@@ -31,7 +31,12 @@ export class PhotonImageProcessor {
   // ----------------------------------------------------------------
   // START: Private methods
 
-  async #processImg(fileData) {
+  /**
+   *
+   * @param {FileSelectDataFile} fileData
+   * @param {number}             resizeRatio
+   */
+  async #processImg(fileData, resizeRatio) {
     // See documentation:
     // https://silvia-odwyer.github.io/photon/guide/using-photon-web/
 
@@ -45,8 +50,8 @@ export class PhotonImageProcessor {
 
     PhotonImageProcessor.#processor.reisze(
       image,
-      fileData.width,
-      fileData.height,
+      fileData.width * resizeRatio,
+      fileData.height * resizeRatio,
     );
 
     if (this._config.greyScale === true) {
@@ -60,9 +65,10 @@ export class PhotonImageProcessor {
       image,
     );
 
-    file.file = await this.#getProcessedImageFile(file, this._canvas);
-    file.size = file.file.size;
-    file.ok = (file.size < this._config.maxSingleSize);
+    fileData.file = await this.#getProcessedImageFile(fileData.file, this._canvas);
+    fileData.size = file.file.size;
+    fileData.ok = (file.size < this._config.maxSingleSize);
+    fileData.setImageMetadata(true);
 
     // const newName = fileData.name !== fileData.file.name
     //   ? fileData.file.name
@@ -73,13 +79,13 @@ export class PhotonImageProcessor {
     this.#processor = photon;
   }
 
-  #initPhoton (file) {
+  #initPhoton (file, resizeRatio) {
     const setPhoton = PhotonImageProcessor.#setPhoton;
     const proccessImg = this.#processImg;
 
     return (photon) => {
       setPhoton(photon);
-      proccessImg(file);
+      proccessImg(file, resizeRatio);
     };
   }
 
@@ -104,12 +110,12 @@ export class PhotonImageProcessor {
     });
   }
 
-  _processInner (fileData) {
+  _processInner (fileData, resizeRatio) {
     fileData = super(fileData);
     if (ImageProcessor.#processor === null) {
-      import("@silvia-odwyer/photon").then(this.#initPhoton(fileData));
+      import("@silvia-odwyer/photon").then(this.#initPhoton(fileData, resizeRatio));
     } else {
-      this.#processImg(fileData);
+      this.#processImg(fileData, resizeRatio);
     }
   }
 

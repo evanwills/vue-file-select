@@ -2,12 +2,14 @@
 import { nanoid } from 'nanoid';
 import {
   getAllowedTypes,
+  getFileExtension,
   getUniqueFileName,
   getValidMaxSingleSize,
   isValidFileType,
   overrideConfig,
 } from './file-select-utils';
 import FileSelectDataImage from './fileSelectDataImage.class';
+import { fileIsImage, getImageMetadata } from './image-processor-utils';
 
 export class FileSelectDataFile {
   // ----------------------------------------------------------------
@@ -20,26 +22,22 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
-  _config;
+  config;
   format = null;
   ext;
   file;
   id = null;
+  imgMeta = null;
   invalid = false;
   isImage = false;
-  height = null;
-  width = null;
   mime;
   name;
-  ogHeight = null;
   ogName;
-  ogWidth = null;
   ok = true;
   oversize;
   position = -1;
   previousName;
   processing = false;
-  ratio = 0;
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -127,12 +125,18 @@ export class FileSelectDataFile {
   // START: Constructor method
 
   constructor (file, config = null) {
-    this.id = nanoid(8);
-    this.ext = file.name.replace(/^.*?\.([a-z\d]+)$/i, '');
+    if (file instanceof File === false) {
+      throw new Error(
+        'FileSelectDataFile constructor expects first parameter to '
+        + `be a File object. ${typeof file} given`,
+      );
+    }
+
+    this.ext = getFileExtension(file);
     this.file = file;
+    this.id = nanoid(8);
     this.invalid = false;
-    this.isImage = false;
-    this.metadata = null;
+    this.isImage = fileIsImage(file);
     this.mime = file.type;
     this.name = getUniqueFileName(file.name);
     this.ogName = file.name;
@@ -140,18 +144,10 @@ export class FileSelectDataFile {
     this.position = -1;
     this.previousName = file.name;
     this.processing = false;
-    this.size = file.size;
 
     this._setConfig(config);
 
-    if (isValidFileType(file, this._config.defaultAllowed) === false) {
-      this.invalid = true;
-      this.ok = false;
-    }
-
-    if (this.isOversized() === true) {
-      this.ok = false;
-    }
+    this._setOK();
   }
 
   //  END:  Constructor methods
@@ -191,6 +187,15 @@ export class FileSelectDataFile {
     }
 
     return true;
+  }
+
+  _setOK () {
+    if (isValidFileType(file, this._config.defaultAllowed) === false) {
+      this.invalid = true;
+      this.ok = false;
+    } else if (this.isOversized() === true) {
+      this.ok = false;
+    }
   }
 
   //  END:  Private methods
@@ -258,6 +263,66 @@ export class FileSelectDataFile {
   set mime (mime) {
     if (typeof mime === 'string') {
       this.mime = mime;
+    }
+  }
+
+  /**
+   * @param {File} file
+   */
+  set file (file) {
+    if (file instanceof File) {
+      this.file = file;
+      this.ext = getFileExtension(file);
+      this.isImage = fileIsImage(file);
+      this.mime = file.type;
+      this._setOK();
+    }
+  }
+
+  height () {
+    if (this.isImage) {
+      this.setImageMetadata();
+      return this.imgMeta.height;
+    }
+
+    return 0;
+  }
+
+  width () {
+    if (this.isImage) {
+      this.setImageMetadata();
+      return this.imgMeta.width;
+    }
+
+    return 0;
+  }
+
+  ogHeight () {
+    if (this.isImage) {
+      this.setImageMetadata();
+      return this.imgMeta.ogHeight;
+    }
+
+    return 0;
+  }
+
+  ogWidth () {
+    if (this.isImage) {
+      this.setImageMetadata();
+      return this.imgMeta.ogWidth;
+    }
+
+    return 0;
+  }
+
+  async setImageMetadata (force = false) {
+    if (this.isImage === true && (this.isImage === null || force === true)) {
+      this.imgMeta = await getImageMetadata(this.file);
+
+      if (force === false) {
+        this.imgMeta.ogHeight = this.imgMeta.height
+        this.imgMeta.ogWidth = this.imgMeta.width
+      }
     }
   }
 

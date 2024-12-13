@@ -1,5 +1,6 @@
 import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
 import FileSelectDataFile from "./fileSelectDataFile.class";
+import { getImageMetadata } from "./image-processor-utils";
 
 export class ImageProcessor {
   // ----------------------------------------------------------------
@@ -99,48 +100,26 @@ export class ImageProcessor {
     }
   }
 
-  _getImage (file) {
-    return new Promise((resolve) => {
-      const img = new Image();
+  /**
+   *
+   * @param {FileSelectDataFile} fileData
+   * @returns {FileSelectDataFile}
+   */
+  async _getResizeRatio (fileData) {
+    await fileData.setImageMetadata();
 
-      img.onload(() => { resolve(img) });
-
-      img.src = file;
-    })
-  }
-
-  async _setAspectRatio (fileData) {
-    const img = await this._getImage(fileData.file);
-    let format = 0;
-
-    if (img.height > img.width) {
-      // portrait format
-      format = 1;
-    } else if (img.height < img.width) {
-      // landscape format
-      format = -1;
-    }
-
-    let ratio = 0;
-
-    if (isPortrait === true) {
-      if (img.height > this._config.maxImgPx) {
-        ratio = this._config.maxImgPx / img.height;
+    if (fileData.format === 'portrait') {
+      if (fileData.height() > this._config.maxImgPx) {
+        return this._config.maxImgPx / fileData.height();
       }
     } else {
-      if (img.width > this._config.maxImgPx) {
-        ratio = this._config.maxImgPx / img.width;
+      // This works for both landscape and square format images.
+      if (fileData.width() > this._config.maxImgPx) {
+        return this._config.maxImgPx / fileData.width();
       }
     }
 
-    fileData.height = img.height * ratio;
-    fileData.ogHeight = img.height;
-    fileData.width = img.width * ratio;
-    fileData.ogWidth = img.width;
-    fileData.ratio = ratio;
-    fileData.format = format;
-
-    return fileData;
+    return 1;
   }
 
   /**
@@ -171,11 +150,19 @@ export class ImageProcessor {
    */
   async process (fileData) {
     if (typeof fileData.isImg === 'function' && fileData.isImg() === true) {
-      fileData = await this._setAspectRatio(fileData);
-      return this._processInner(fileData);
+      // NOTE: _getResizeRatio() has the (potential) side effect of
+      //       modifying `fileData` by causing fileData to add image
+      //       height, width & format info to itself
+      const resizeRatio = this._getResizeRatio(fileData);
+
+      if (this._config.getGreyscale === true || (resizeRatio < 1 && resizeRatio > 0)) {
+        return this._processInner(fileData, resizeRatio)
+      }
+
+      return fileData;
     } else {
       throw new Error(
-        'ImageProcessor.process() could not process input'
+        'ImageProcessor.process() could not process input',
       );
     }
   }
