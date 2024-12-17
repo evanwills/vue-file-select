@@ -1,7 +1,10 @@
-import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectDataFile from "./fileSelectDataFile.class";
+// import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
+import FileSelectFileData from "./FileSelectFileData.class";
+import ImageProcessor from "./ImageProcessor.class";
 
-export class PhotonImageProcessor {
+const photonURL = 'http://localhost:3917/wasm/photon_rs_bg.wasm';
+
+export class PhotonImageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Define static properties
 
@@ -20,11 +23,12 @@ export class PhotonImageProcessor {
   // START: Instance constructor
 
   constructor (canvas, config = null) {
-    try {
-      super(canvas, config);
-    } catch (e) {
-      throw Error(e.message);
-    }
+    super(canvas, config);
+    // try {
+    //   super(canvas, config);
+    // } catch (e) {
+    //   throw Error(e.message);
+    // }
   }
 
   //  END:  Instance constructor
@@ -33,7 +37,7 @@ export class PhotonImageProcessor {
 
   /**
    *
-   * @param {FileSelectDataFile} fileData
+   * @param {FileSelectFileData} fileData
    * @param {number}             resizeRatio
    */
   async #processImg(fileData, resizeRatio) {
@@ -55,7 +59,7 @@ export class PhotonImageProcessor {
     );
 
     if (this._config.greyScale === true) {
-      PhotonImageProcessor.#processor.greyscale(image);
+      PhotonImageProcessor.#processor.greyScale(image);
     }
 
     // Place the modified image back on the canvas
@@ -110,13 +114,17 @@ export class PhotonImageProcessor {
     });
   }
 
-  _processInner (fileData, resizeRatio) {
-    fileData = super(fileData);
-    if (ImageProcessor.#processor === null) {
-      import("@silvia-odwyer/photon").then(this.#initPhoton(fileData, resizeRatio));
+  async _processInner (fileData, resizeRatio) {
+    console.group('PhotonImageProcessor._processInner()');
+    console.log('fileData:', fileData);
+    console.log('resizeRatio:', resizeRatio);
+
+    if (PhotonImageProcessor.#processor === null) {
+      import('@silvia-odwyer/photon').then(this.#initPhoton(fileData, resizeRatio));
     } else {
       this.#processImg(fileData, resizeRatio);
     }
+    console.groupEnd();
   }
 
   //  END:  Private methods
@@ -124,25 +132,10 @@ export class PhotonImageProcessor {
   // START: Public methods
 
   forceInit () {
-    if (ImageProcessor.#processor === null) {
-      import("@silvia-odwyer/photon").then(
+    if (PhotonImageProcessor.#processor === null) {
+      import('@silvia-odwyer/photon').then(
         PhotonImageProcessor.#setPhoton,
       );
-    }
-  }
-
-  /**
-   *
-   *
-   * @param {FileSelectDataFile} fileData
-   *
-   * @returns {FileSelectDataFile}
-   */
-  async process (fileData) {
-    try {
-      return super(fileData);
-    } catch (error) {
-      throw Error(error.message);
     }
   }
 
@@ -150,4 +143,4 @@ export class PhotonImageProcessor {
   // ----------------------------------------------------------------
 }
 
-export default ImageProcessor;
+export default PhotonImageProcessor;

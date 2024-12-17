@@ -1,7 +1,8 @@
-import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectDataFile from "./fileSelectDataFile.class";
+// import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
+import FileSelectFileData from "./FileSelectFileData.class";
+import ImageProcessor from "./ImageProcessor.class";
 
-export class IBRimageProcessor {
+export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Define static properties
 
@@ -83,7 +84,7 @@ export class IBRimageProcessor {
   }
 
   _processInner (fileData, _resizeRatio) {
-    fileData = super(fileData);
+    fileData = super._processInner(fileData);
     if (IBRimageProcessor.#processor === null) {
       IBRimageProcessor.#processor = new imageBlobReduce();
     }
@@ -102,21 +103,6 @@ export class IBRimageProcessor {
   forceInit () {
     if (IBRimageProcessor.#processor === null) {
       IBRimageProcessor.#processor = new imageBlobReduce();
-    }
-  }
-
-  /**
-   *
-   *
-   * @param {FileSelectDataFile} fileData
-   *
-   * @returns {FileSelectDataFile}
-   */
-  async process (fileData) {
-    try {
-      return super(fileData);
-    } catch (error) {
-      throw Error(error.message);
     }
   }
 

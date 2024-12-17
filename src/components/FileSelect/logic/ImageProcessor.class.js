@@ -1,5 +1,7 @@
+import { compileScript } from "vue/compiler-sfc";
 import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectDataFile from "./fileSelectDataFile.class";
+import FileSelectCommunicator from "./FileSelectCommunicator.class";
+import FileSelectFileData from "./FileSelectFileData.class";
 
 export class ImageProcessor {
   // ----------------------------------------------------------------
@@ -17,6 +19,7 @@ export class ImageProcessor {
 
   _canvas = null;
   _config = null;
+  _comms = null;
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -62,10 +65,10 @@ export class ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null) {
-    if (canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
+  constructor (canvas, config = null, comms = null) {
+    if (typeof canvas === 'undefined' || canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
       throw new Error(
-        'FileSelectDataPhoton constructor expects third argument '
+        'ImageProcessor constructor expects first argument '
         + '`canvas` to be an instance of an HTML canvas '
         + 'element/DOM node.',
       )
@@ -77,6 +80,12 @@ export class ImageProcessor {
       this._setConfig(config);
     } catch (e) {
       throw Error(e.message);
+    }
+
+    if (comms !== null) {
+      if (comms instanceof FileSelectCommunicator) {
+        this._comms = comms;
+      }
     }
   }
 
@@ -101,8 +110,8 @@ export class ImageProcessor {
 
   /**
    *
-   * @param {FileSelectDataFile} fileData
-   * @returns {FileSelectDataFile}
+   * @param {FileSelectFileData} fileData
+   * @returns {FileSelectFileData}
    */
   async _getResizeRatio (fileData) {
     await fileData.setImageMetadata();
@@ -124,13 +133,19 @@ export class ImageProcessor {
   /**
    * Do custom image processing work on supplied image
    *
-   * @param {FileSelectDataFile} _fileData
+   * @param {FileSelectFileData} _fileData
    */
   async _processInner (_fileData) {
     throw new Error(
       'ImageProcessor._processInner() must be overridden by a sub '
       + 'class.',
     );
+  }
+
+  _dispatch (type, data) {
+    if (this._comms !== null) {
+      this._comms.dispatch(type, data);
+    }
   }
 
   //  END:  Private methods
@@ -141,29 +156,43 @@ export class ImageProcessor {
   }
 
   /**
+   * Process image
    *
+   * @param {FileSelectFileData} fileData
    *
-   * @param {FileSelectDataFile} fileData
-   *
-   * @returns {FileSelectDataFile}
+   * @returns {FileSelectFileData}
    */
   async process (fileData) {
-    if (typeof fileData.isImg === 'function' && fileData.isImg() === true) {
+    console.groupCollapsed('ImageProcessor.process()');
+    console.log('fileData:', fileData);
+    console.log('fileData.isImg():', fileData.isImg());
+    console.log('fileData instanceof FileSelectFileData:', fileData instanceof FileSelectFileData);
+    if (fileData instanceof FileSelectFileData && fileData.isImg() === true) {
       // NOTE: _getResizeRatio() has the (potential) side effect of
       //       modifying `fileData` by causing fileData to add image
       //       height, width & format info to itself
       const resizeRatio = this._getResizeRatio(fileData);
+      const tooBig = await fileData.tooLarge(this._config.maxImgPx);
 
-      if (this._config.getGreyscale === true || (resizeRatio < 1 && resizeRatio > 0)) {
+      console.log('resizeRatio:', resizeRatio);
+      console.log('tooBig:', tooBig);
+      console.groupEnd();
+
+      if (tooBig === true
+        || this._config.getGreyscale === true
+        || (resizeRatio < 1 && resizeRatio > 0)
+      ) {
+        console.info('about to resize');
+        console.groupEnd();
         return this._processInner(fileData, resizeRatio)
       }
 
+      console.groupEnd();
       return fileData;
-    } else {
-      throw new Error(
-        'ImageProcessor.process() could not process input',
-      );
     }
+    console.groupEnd();
+
+    return fileData;
   }
 
   //  END:  Public methods

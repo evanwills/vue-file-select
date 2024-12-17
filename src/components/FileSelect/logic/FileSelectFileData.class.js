@@ -7,9 +7,11 @@ import {
   getValidMaxSingleSize,
   isValidFileType,
   overrideConfig,
+  rewriteConfigError,
 } from './file-select-utils';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
 import ImageProcessor from './ImageProcessor.class';
+import FileSelectCommunicator from './FileSelectCommunicator.class';
 
 export class FileSelectDataFile {
   // ----------------------------------------------------------------
@@ -22,8 +24,6 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
-  config;
-  format = null;
   ext;
   file;
   id = null;
@@ -39,16 +39,21 @@ export class FileSelectDataFile {
   previousName;
   processing = false;
 
+  _config;
+  /**
+   * @property {ImageProcessor|null}
+   */
+  _comms = null;
+
   //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
-  static defaultAllowed () { return this.#defaultAllowed; }
-  static greyscale () { return ImageProcessor.getGreyscale(); }
-  static jpegCompression () { return ImageProcessor.getJpegCompression(); }
-  static maxImgPx () { return ImageProcessor.getMaxImgPx(); }
-  static maxSingleSize () { return this.#maxSingleSize; }
-  static noResize () { return ImageProcessor.getNoResize(); }
+  static getDefaultAllowed () { return this.#defaultAllowed; }
+  static getGreyscale () { return ImageProcessor.getGreyscale(); }
+  static getJpegCompression () { return ImageProcessor.getJpegCompression(); }
+  static getMaxImgPx () { return ImageProcessor.getMaxImgPx(); }
+  static getMaxSingleSize () { return this.#maxSingleSize; }
 
   static setGreyscale (greyscale) { ImageProcessor.setGreyscale(greyscale); }
 
@@ -112,7 +117,7 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor (file, config = null) {
+  constructor (file, config = null, comms = null) {
     if (file instanceof File === false) {
       throw new Error(
         'FileSelectDataFile constructor expects first parameter to '
@@ -132,28 +137,28 @@ export class FileSelectDataFile {
     this.position = -1;
     this.previousName = file.name;
     this.processing = false;
+    this._comms = null;
 
     this._setConfig(config);
 
     this._setOK();
+
+    if (comms !== null && comms instanceof FileSelectCommunicator === true) {
+      this._comms = comms;
+    }
+
+    if (this.isImage && this.ok) {
+      this.setImageMetadata();
+    }
   }
 
   //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: Private method
 
-  _setConfig (config) {
-    // Preset config with default values
-
-    this._config = {
-      defaultAllowed: FileSelectDataFile.#defaultAllowed,
-      maxSingleSize: FileSelectDataFile.#maxSingleSize,
-    };
-
-    try {
-      this._config = overrideConfig(this._config, config);
-    } catch (error) {
-      throw Error(rewriteConfigError(error.message));
+  _dispatch (type, data) {
+    if (this._comms !== null) {
+      this._comms.dispatch(type, data);
     }
   }
 
@@ -177,11 +182,27 @@ export class FileSelectDataFile {
     return true;
   }
 
+  _setConfig (config) {
+    // Preset config with default values
+
+    this._config = {
+      defaultAllowed: FileSelectDataFile.#defaultAllowed,
+      maxSingleSize: FileSelectDataFile.#maxSingleSize,
+      maxImgPx: ImageProcessor.getMaxImgPx(),
+    };
+
+    try {
+      this._config = overrideConfig(this._config, config);
+    } catch (error) {
+      throw Error(rewriteConfigError(error.message));
+    }
+  }
+
   _setOK () {
-    if (isValidFileType(file, this._config.defaultAllowed) === false) {
+    if (isValidFileType(this.file, this._config.defaultAllowed) === false) {
       this.invalid = true;
       this.ok = false;
-    } else if (this.isOversized() === true) {
+    } else if (this.tooHeavy() === true) {
       this.ok = false;
     }
   }
@@ -206,12 +227,24 @@ export class FileSelectDataFile {
     return (this.id === id || this.name === name);
   }
 
-  isOversized () {
+  tooHeavy () {
     if (this.processing === true) {
       return false;
     }
 
-    return (file.size > this._config.maxSingleSize);
+    return (this.file.size > this._config.maxSingleSize);
+  }
+
+  async tooLarge () {
+    if (this.isImg()) {
+      await this.setImageMetadata();
+
+      const { height, width } = this.imgMeta;
+      const { maxImgPx } = this._config
+
+      return (height > maxImgPx || width > maxImgPx);
+    }
+    return this.tooHeavy();
   }
 
   /**
@@ -267,36 +300,36 @@ export class FileSelectDataFile {
     }
   }
 
-  height () {
+  async height () {
     if (this.isImage) {
-      this.setImageMetadata();
+      await this.setImageMetadata();
       return this.imgMeta.height;
     }
 
     return 0;
   }
 
-  width () {
+  async width () {
     if (this.isImage) {
-      this.setImageMetadata();
+      await this.setImageMetadata();
       return this.imgMeta.width;
     }
 
     return 0;
   }
 
-  ogHeight () {
+  async ogHeight () {
     if (this.isImage) {
-      this.setImageMetadata();
+      await this.setImageMetadata();
       return this.imgMeta.ogHeight;
     }
 
     return 0;
   }
 
-  ogWidth () {
+  async ogWidth () {
     if (this.isImage) {
-      this.setImageMetadata();
+      await this.setImageMetadata();
       return this.imgMeta.ogWidth;
     }
 
@@ -304,7 +337,7 @@ export class FileSelectDataFile {
   }
 
   async setImageMetadata (force = false) {
-    if (this.isImage === true && (this.isImage === null || force === true)) {
+    if (this.isImage === true && (this.imgMeta === null || force === true)) {
       const tmp = await getImageMetadata(this.file);
 
       this.imgMeta = {
@@ -313,9 +346,13 @@ export class FileSelectDataFile {
       }
 
       if (force === false) {
+        // Only set the original height & width the first time this
+        // is called
         this.imgMeta.ogHeight = this.imgMeta.height
         this.imgMeta.ogWidth = this.imgMeta.width
       }
+
+      this._dispatch('imagemetaset', this.imgMeta);
     }
   }
 
@@ -323,17 +360,62 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Public utility methods
 
+  /**
+   * Add another dispatcher function
+   *
+   * @param {Function} dispatcher A function that can be used as an
+   *                              event handler
+   * @param {string}   id         ID of the dispatcher (so it can be
+   *                              replaced or removed)
+   * @param {boolean}  replace    If a dispatcher already exists,
+   *                              replace it with the new dispatcher
+   *                              function
+   *
+   * @throws {Error} If dispatcher was not a function
+   * @throws {Error} If id was not a string or was empty
+   * @throws {Error} If a dispatcher with the same ID already exists
+   *                 and `replace` is FALSE
+   */
+  addDispatcher (dispatcher, id, replace = false) {
+    if (this._comms !== null) {
+      try {
+        this._comms.addDispatcher(dispatcher, id, replace);
+      } catch (error) {
+        throw Error(error.message);
+      }
+    }
+  };
+
+  /**
+   * Remove a dispatcher function
+   *
+   * @param {string} id ID of the dispatcher function to be removed.
+   *
+   * @returns {boolean} TRUE if the dispatcher was removed.
+   *                    FALSE otherwise
+   */
+  removeDispatcher (id) {
+    return (this._comms !== null)
+      ? this._comms.removeDispatcher(id)
+      : false;
+  }
+
   async process (imgProcessor = null) {
-    if (this.isImage && imgProcessor !== null) {
+    console.group('FileSelectDataFile.process()');
+    console.log('imgProcessor:', imgProcessor);
+    console.log('this.isImg():', this.isImg());
+    if (this.isImg() === true && imgProcessor !== null) {
       this.processing = true;
 
-      await imgProcessor(this.file);
+      await imgProcessor.process(this);
 
       this.processing = false;
 
+      console.groupEnd();
       return true;
     }
 
+    console.groupEnd();
     return false;
   }
 

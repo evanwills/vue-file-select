@@ -10,9 +10,11 @@ const getImage = (file) => new Promise(
   (resolve) => {
     const img = new Image();
 
-    img.onload(() => { resolve(img) });
+    img.onload = () => {
+      resolve(img);
+    };
 
-    img.src = file;
+    img.src = URL.createObjectURL(file);
   },
 );
 
@@ -25,7 +27,6 @@ const getImage = (file) => new Promise(
  */
 export const getImageMetadata = async (file) => {
   const img = await getImage(file);
-
   let format = 'square';
 
   if (img.height > img.width) {
