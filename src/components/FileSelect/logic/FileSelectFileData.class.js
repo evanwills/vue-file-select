@@ -34,10 +34,11 @@ export class FileSelectDataFile {
   name;
   ogName;
   ok = true;
-  oversize;
   position = -1;
   previousName;
   processing = false;
+  tooLarge = null;
+  _metaWaiting = false;
 
   _config;
   /**
@@ -117,7 +118,7 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor (file, config = null, comms = null) {
+  constructor (file, config = null, comms = null, imgProcessor = null) {
     if (file instanceof File === false) {
       throw new Error(
         'FileSelectDataFile constructor expects first parameter to '
@@ -131,13 +132,17 @@ export class FileSelectDataFile {
     this.invalid = false;
     this.isImage = fileIsImage(file);
     this.mime = file.type;
-    this.name = getUniqueFileName(file.name);
+    this.name = getUniqueFileName(file.name, this.id);
     this.ogName = file.name;
+    this.ogSize = file.size;
     this.ok = true;
     this.position = -1;
     this.previousName = file.name;
     this.processing = false;
+    this.tooLarge = null;
     this._comms = null;
+    this._metaWaiting = false;
+    this.replaceCount = 0;
 
     this._setConfig(config);
 
@@ -148,7 +153,11 @@ export class FileSelectDataFile {
     }
 
     if (this.isImage && this.ok) {
-      this.setImageMetadata();
+      this.setImageMetadata(false, imgProcessor);
+    }
+
+    if (this.name !== this.ogName) {
+      this._dispatch('renamed', { old: this.ogName, new: this.name });
     }
   }
 
@@ -158,7 +167,7 @@ export class FileSelectDataFile {
 
   _dispatch (type, data) {
     if (this._comms !== null) {
-      this._comms.dispatch(type, data);
+      this._comms.dispatch(type, data, 'FileSelectFileData');
     }
   }
 
@@ -235,24 +244,12 @@ export class FileSelectDataFile {
     return (this.file.size > this._config.maxSingleSize);
   }
 
-  async tooLarge () {
-    if (this.isImg()) {
-      await this.setImageMetadata();
-
-      const { height, width } = this.imgMeta;
-      const { maxImgPx } = this._config
-
-      return (height > maxImgPx || width > maxImgPx);
-    }
-    return this.tooHeavy();
-  }
-
   /**
-   * @param {number} pos
+   * @param {number} position
    */
-  set position (pos) {
-    if (typeof pos === 'number' && number >= 0) {
-      this.position = pos;
+  set position (position) {
+    if (typeof position === 'number' && number >= 0) {
+      this.position = position;
     }
   }
 
@@ -270,7 +267,7 @@ export class FileSelectDataFile {
    */
   set name (name) {
     if (typeof name === 'string') {
-      const tmp = name.trim();
+      const tmp = getUniqueFileName(name.trim());
       if (tmp !== '') {
         this.previousName = this.name;
         this.name = tmp;
@@ -291,19 +288,23 @@ export class FileSelectDataFile {
    * @param {File} file
    */
   set file (file) {
-    if (file instanceof File) {
+    if (file instanceof File && file !== this.file) {
       this.file = file;
       this.ext = getFileExtension(file);
       this.isImage = fileIsImage(file);
       this.mime = file.type;
+      this.replaceCount += 1;
       this._setOK();
+      this.setImageMetadata(true);
+      this._dispatch('replaced', this);
     }
   }
 
   async height () {
     if (this.isImage) {
-      await this.setImageMetadata();
-      return this.imgMeta.height;
+      return (this.imgMeta !== null)
+        ? this.imgMeta.height
+        : 0;
     }
 
     return 0;
@@ -311,8 +312,9 @@ export class FileSelectDataFile {
 
   async width () {
     if (this.isImage) {
-      await this.setImageMetadata();
-      return this.imgMeta.width;
+      return (this.imgMeta !== null)
+        ? this.imgMeta.width
+        : 0;
     }
 
     return 0;
@@ -320,8 +322,9 @@ export class FileSelectDataFile {
 
   async ogHeight () {
     if (this.isImage) {
-      await this.setImageMetadata();
-      return this.imgMeta.ogHeight;
+      return (this.imgMeta !== null)
+        ? this.imgMeta.ogHeight
+        : 0;
     }
 
     return 0;
@@ -329,30 +332,42 @@ export class FileSelectDataFile {
 
   async ogWidth () {
     if (this.isImage) {
-      await this.setImageMetadata();
-      return this.imgMeta.ogWidth;
+      return (this.imgMeta !== null)
+        ? this.imgMeta.ogWidth
+        : 0;
     }
 
     return 0;
   }
 
-  async setImageMetadata (force = false) {
-    if (this.isImage === true && (this.imgMeta === null || force === true)) {
-      const tmp = await getImageMetadata(this.file);
+  setImageMetadata (force = false) {
+    if (this.isImage === true && this._metaWaiting === false && (this.imgMeta === null || force === true)) {
+      this._metaWaiting = true;
 
-      this.imgMeta = {
-        ...this.imgMeta,
-        ...tmp,
-      }
+      return getImageMetadata(this.file).then((result) => {
+        this._metaWaiting = false;
 
-      if (force === false) {
-        // Only set the original height & width the first time this
-        // is called
-        this.imgMeta.ogHeight = this.imgMeta.height
-        this.imgMeta.ogWidth = this.imgMeta.width
-      }
+        if (this.imgMeta === null) {
+          this.imgMeta = {};
+        }
 
-      this._dispatch('imagemetaset', this.imgMeta);
+        this.imgMeta = {
+          ...result,
+        }
+
+        this.tooLarge = (result.height > this._config.maxImgPx || result.width > this._config.maxImgPx);
+
+        if (force === false || typeof this.imgMeta.ogHeight !== 'number') {
+          // Only set the original height & width the first time this
+          // is called
+          this.imgMeta.ogHeight = result.height
+          this.imgMeta.ogWidth = result.width
+        } else if (force === true && this.tooLarge === true) {
+          this.ok = false;
+        }
+
+        this._dispatch('imageMetaSet', this);
+      });
     }
   }
 
@@ -401,9 +416,6 @@ export class FileSelectDataFile {
   }
 
   async process (imgProcessor = null) {
-    console.group('FileSelectDataFile.process()');
-    console.log('imgProcessor:', imgProcessor);
-    console.log('this.isImg():', this.isImg());
     if (this.isImg() === true && imgProcessor !== null) {
       this.processing = true;
 
@@ -411,11 +423,9 @@ export class FileSelectDataFile {
 
       this.processing = false;
 
-      console.groupEnd();
       return true;
     }
 
-    console.groupEnd();
     return false;
   }
 

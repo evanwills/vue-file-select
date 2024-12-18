@@ -1,18 +1,19 @@
 // import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
 import FileSelectFileData from "./FileSelectFileData.class";
 import ImageProcessor from "./ImageProcessor.class";
+import imageBlobReduce from "image-blob-reduce";
 
 export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Define static properties
 
-  static #processor = null;
+  static _reducer = null;
 
   //  END:  Define static properties
   // ----------------------------------------------------------------
   // START: Define instance properties
 
-  _config = null;
+  _obj = 'ImageBlobReduceProcessor';
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -22,11 +23,15 @@ export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null) {
+  constructor (canvas, config = null, comms = null) {
     try {
-      super(canvas, config);
+      super(canvas, config, comms);
     } catch (e) {
       throw Error(e.message);
+    }
+    this._obj = 'ImageBlobReduceProcessor';
+    if (IBRimageProcessor._reducer === null) {
+      IBRimageProcessor._reducer = new imageBlobReduce();
     }
   }
 
@@ -38,26 +43,34 @@ export class IBRimageProcessor extends ImageProcessor {
    * Get a callback function to pass to `ImageBlobReduce.toBlob().then()`
    * to handle successful resizing of an image
    *
-   * @param {FileSelectData} context
-   * @param {FileDataItem}   file    File data object currently being
-   *                                 processed
+   * @param {FileSelectDataFile} fileData File data object currently being
+   *                                  processed
    * @returns {Function<{Blob}}}
    */
-  #processImageBlobThen (context, file) {
+  _processImageBlobThen (fileData) {
     return (blob) => {
-      file.file = new File(
+      const tmp = new File(
         [blob],
-        file.name,
+        fileData.name,
         {
           type: blob.type,
-          lastModified: new Date(),
+          lastModified: fileData.lastModified(),
         }
-      )
-      file.processing = false;
-      file.size = file.file.size;
+      );
 
-      context._addFileToList(file);
-      context._finaliseProcessing(file, 1);
+      // sometimes the resized image ends up being larger than the
+      // original because the original was better optimised.
+      // Only replace the image if the new one is smaller that the
+      // old one.
+      if (tmp.size < fileData.size()) {
+        fileData.file = tmp
+        fileData.setImageMetadata(true);
+      }
+
+      fileData.processing = false;
+
+      this._dispatch('endImgProcessing', fileData);
+      return fileData;
     };
   }
 
@@ -70,30 +83,26 @@ export class IBRimageProcessor extends ImageProcessor {
    *                                 processed
    * @returns {Function<{Blob}}}
    */
-  #processImageBlobCatch (context, file) {
+  _processImageBlobCatch (file) {
     return (error) => {
-      context._logError(error.message);
+      this._dispatch('resizeerror', error.message);
 
       if (error.message.includes('Pica: cannot use getImageData on canvas')) {
         IBRimageProcessor._noResize = true;
       }
-
-      context._processOverSizedFile(file, true);
-      context._finaliseProcessing(file, 1);
+      file.processing = false;
+      this._dispatch('endImgProcessing', file);
     }
   }
 
-  _processInner (fileData, _resizeRatio) {
-    fileData = super._processInner(fileData);
-    if (IBRimageProcessor.#processor === null) {
-      IBRimageProcessor.#processor = new imageBlobReduce();
-    }
-
-    return IBRimageProcessor._imgResize.toBlob(
-      fileData,
+  async _processInner (fileData, _resizeRatio) {
+    this._dispatch('startprocessing', fileData);
+    fileData.processing = true;
+    return IBRimageProcessor._reducer.toBlob(
+      fileData.file,
       { max: this._config.maxImgPx },
-    ).then(this.#processImageBlobThen(this, fileData))
-      .catch(this.#processImageBlobCatch(this, fileData));
+    ).then(this._processImageBlobThen(fileData))
+      .catch(this._processImageBlobCatch(fileData));
   }
 
   //  END:  Private methods
@@ -101,9 +110,6 @@ export class IBRimageProcessor extends ImageProcessor {
   // START: Public methods
 
   forceInit () {
-    if (IBRimageProcessor.#processor === null) {
-      IBRimageProcessor.#processor = new imageBlobReduce();
-    }
   }
 
   //  END:  Public methods

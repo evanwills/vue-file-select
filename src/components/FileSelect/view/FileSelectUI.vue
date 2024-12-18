@@ -129,12 +129,8 @@ const handleFileChange = (event) => {
 };
 
 const handleResizerEvents = (type, data) => {
-  console.groupCollapsed(ePre('handleResizerEvents'));
-  console.log('type:', type);
-  console.log('data:', data);
-
   switch (type) {
-    case 'processcount':
+    case 'processCount':
       if (data === 0) {
         fileUploadUiInput.value.value = '';
       }
@@ -143,8 +139,6 @@ const handleResizerEvents = (type, data) => {
     default:
       break;
   }
-
-  console.groupEnd();
 }
 
 //  END:  Event handler methods

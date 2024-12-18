@@ -7,12 +7,11 @@ import {
   getValidMaxTotalSize,
   overrideConfig,
   resetPos,
-  rewriteConfigError,
   rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../../utils/data-utils';
 import FileSelectFileData from './FileSelectFileData.class';
-import ImageProcessor from './ImageProcessor.photon.class';
+import ImageProcessor from './ImageProcessor.IBR.class';
 import FileSelectCommunicator from './FileSelectCommunicator.class';
 
 // ==================================================================
@@ -101,7 +100,7 @@ import FileSelectCommunicator from './FileSelectCommunicator.class';
 /**
  * The number of files about to be processed.
  *
- * The `processcount` event is dispatched when
+ * The `processCount` event is dispatched when
  * `FileSelectData.processFiles` is called
  *
  * @typedef ProcesscountEventData
@@ -548,16 +547,25 @@ export class FileSelectFileList {
     } catch (e) {
       throw Error(e.message);
     }
-    this._imgProcessor = new ImageProcessor(canvas, this._config);
+    this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
 
     if (this.imagesAllowed()) {
       this._imgProcessor.forceInit();
+      this._comms.addDispatcher(this._handleImageMeta(this), 'FileSelectFileList--image-resize')
     }
   }
 
   //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: private methods
+
+  _handleImageMeta (context) {
+    return (type, data) => {
+      if (type === 'imageMetaSet') {
+        context._processImage(data);
+      }
+    };
+  }
 
   /**
    * Add a file to the list of files to upload (if it's OK to do so)
@@ -641,7 +649,7 @@ export class FileSelectFileList {
   }
 
   _dispatch (type, data) {
-    this._comms.dispatch(type, data);
+    this._comms.dispatch(type, data, 'FileSelectFileList');
   }
 
   _updateFile (fileData) {
@@ -722,13 +730,10 @@ export class FileSelectFileList {
    * @param {FileSelectFileData} fileData
    */
   async _processImage (fileData) {
-    console.group('FileSelectFileList._processImage()');
-    console.log('fileData:', fileData);
-    console.log('fileData.isImage:', fileData.isImage);
-    if (fileData.isImage === true) {
+    if (fileData.isImage === true && fileData.replaceCount === 0) {
       this._imageCount += 1;
 
-      if (await fileData.tooLarge() === true
+      if (fileData.tooLarge === true
         || fileData.tooHeavy() === true
         || this._config.greyScale === true
       ) {
@@ -742,13 +747,10 @@ export class FileSelectFileList {
       }
     }
     this._dispatch('processed', fileData.id);
-    this._dispatch('processcount', this._processingCount);
-    console.groupEnd();
+    this._dispatch('processCount', this._processingCount);
   }
 
   async _processSingleFileInner (fileData) {
-    console.group('FileSelectFileList._processSingleFileInner()');
-    console.log('fileData:', fileData);
     this._dispatch('processing', fileData.name);
 
     if (fileData.invalid === true) {
@@ -767,8 +769,7 @@ export class FileSelectFileList {
       );
     }
 
-    this._processImage(fileData);
-    console.groupEnd();
+    // this._processImage(fileData);
   }
 
   /**
@@ -787,26 +788,42 @@ export class FileSelectFileList {
         this._addFileToList(fileData);
 
         this._processSingleFileInner(fileData);
+        this._dispatch(
+          'added',
+          {
+            name: fileData.name,
+            ogName: fileData.ogName,
+            cannotadd: false,
+            oversize: fileData.tooHeavy(),
+            invalid: fileData.invalid,
+          },
+        );
 
         return true;
       } else {
-        this._dispatch('notadded', {
-          name: file.name,
-          cannotadd: false,
-          oversize: fileData.tooHeavy(),
-          invalid: fileData.invalid,
-        });
+        this._dispatch(
+          'notadded',
+          {
+            name: file.name,
+            cannotadd: true,
+            oversize: fileData.tooHeavy(),
+            invalid: fileData.invalid,
+          },
+        );
       }
     }
 
-    this._dispatch('notadded', {
-      name: file.name,
-      cannotadd: true,
-      tooBig: this.tooBig(),
-      tooMany: this.tooMany(),
-      size: this._totalSize,
-      count: this._fileList.length,
-    });
+    this._dispatch(
+      'notadded',
+      {
+        name: file.name,
+        cannotadd: true,
+        tooBig: this.tooBig(),
+        tooMany: this.tooMany(),
+        size: this._totalSize,
+        count: this._fileList.length,
+      },
+    );
 
     return false;
   }
@@ -1284,10 +1301,12 @@ export class FileSelectFileList {
 
         this._fileList = this._fileList.map(resetPos);
         this._dispatch('moved', id);
+
         return true;
       }
     }
 
+    console.groupEnd();
     return false;
   }
 
@@ -1312,18 +1331,10 @@ export class FileSelectFileList {
       );
     }
 
-    console.log('files:', files);
-    console.log('this:', this);
-    try {
-      console.log('this._fileList:', this._fileList);
-    } catch (error) {
-      console.error('error:', error.message);
-    }
-
     const c = this._fileList.length;
     const newFiles = [];
 
-    this._dispatch('processcount', files.length);
+    this._dispatch('processCount', files.length);
 
     for (const fileData of files) {
       newFiles.push(this._processSingleFile(fileData));

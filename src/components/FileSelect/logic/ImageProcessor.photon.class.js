@@ -14,6 +14,8 @@ export class PhotonImageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
+  _obj = 'PhotonImageProcessor';
+
   //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
@@ -22,8 +24,10 @@ export class PhotonImageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null) {
-    super(canvas, config);
+  constructor (canvas, config = null, comms = null) {
+    super(canvas, config, comms);
+    this._obj = 'PhotonImageProcessor';
+
     // try {
     //   super(canvas, config);
     // } catch (e) {
@@ -44,6 +48,7 @@ export class PhotonImageProcessor extends ImageProcessor {
     // See documentation:
     // https://silvia-odwyer.github.io/photon/guide/using-photon-web/
 
+    this._dispatch('startprocessing', fileData);
     const ctx = canvas.getContext('2d');
 
     // Draw the image element onto the canvas
@@ -73,6 +78,7 @@ export class PhotonImageProcessor extends ImageProcessor {
     fileData.size = file.file.size;
     fileData.ok = (file.size < this._config.maxSingleSize);
     fileData.setImageMetadata(true);
+    this._dispatch('endprocessing', fileData);
 
     // const newName = fileData.name !== fileData.file.name
     //   ? fileData.file.name
@@ -115,16 +121,11 @@ export class PhotonImageProcessor extends ImageProcessor {
   }
 
   async _processInner (fileData, resizeRatio) {
-    console.group('PhotonImageProcessor._processInner()');
-    console.log('fileData:', fileData);
-    console.log('resizeRatio:', resizeRatio);
-
     if (PhotonImageProcessor.#processor === null) {
       import('@silvia-odwyer/photon').then(this.#initPhoton(fileData, resizeRatio));
     } else {
       this.#processImg(fileData, resizeRatio);
     }
-    console.groupEnd();
   }
 
   //  END:  Private methods

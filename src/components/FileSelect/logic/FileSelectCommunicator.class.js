@@ -47,8 +47,11 @@ export class FileSelectCommunicator {
     return false;
   }
 
-  dispatch (type, data) {
-    console.groupCollapsed('Communicator.dispatch()');
+  dispatch (type, data, src = null) {
+    console.groupCollapsed(`Communicator.dispatch("${type}")`);
+    if (typeof src === 'string') {
+      console.log('SOURCE:', src);
+    }
     console.log('type:', type);
     console.log('data:', data);
     console.groupEnd();

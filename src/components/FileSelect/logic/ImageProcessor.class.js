@@ -20,6 +20,7 @@ export class ImageProcessor {
   _canvas = null;
   _config = null;
   _comms = null;
+  _obj = 'ImageProcessor';
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -75,6 +76,8 @@ export class ImageProcessor {
     }
 
     this._canvas = canvas;
+    this._obj = 'ImageProcessor';
+
 
     try {
       this._setConfig(config);
@@ -144,7 +147,7 @@ export class ImageProcessor {
 
   _dispatch (type, data) {
     if (this._comms !== null) {
-      this._comms.dispatch(type, data);
+      this._comms.dispatch(type, data, this._obj);
     }
   }
 
@@ -163,34 +166,23 @@ export class ImageProcessor {
    * @returns {FileSelectFileData}
    */
   async process (fileData) {
-    console.groupCollapsed('ImageProcessor.process()');
-    console.log('fileData:', fileData);
-    console.log('fileData.isImg():', fileData.isImg());
-    console.log('fileData instanceof FileSelectFileData:', fileData instanceof FileSelectFileData);
     if (fileData instanceof FileSelectFileData && fileData.isImg() === true) {
       // NOTE: _getResizeRatio() has the (potential) side effect of
       //       modifying `fileData` by causing fileData to add image
       //       height, width & format info to itself
       const resizeRatio = this._getResizeRatio(fileData);
-      const tooBig = await fileData.tooLarge(this._config.maxImgPx);
 
-      console.log('resizeRatio:', resizeRatio);
-      console.log('tooBig:', tooBig);
-      console.groupEnd();
-
-      if (tooBig === true
+      if (fileData.tooLarge === true
         || this._config.getGreyscale === true
         || (resizeRatio < 1 && resizeRatio > 0)
       ) {
-        console.info('about to resize');
-        console.groupEnd();
+        this._dispatch('startimgpropcessing:', fileData);
+
         return this._processInner(fileData, resizeRatio)
       }
 
-      console.groupEnd();
       return fileData;
     }
-    console.groupEnd();
 
     return fileData;
   }

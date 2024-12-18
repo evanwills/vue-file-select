@@ -30,7 +30,7 @@ export const isNum = (input, min = null, max = null) => {
  * @param {File} file
  * @returns {string}
  */
-export const getFileExtension = (file) => file.name.replace(/^.*?\.([a-z\d]+)$/i, '');
+export const getFileExtension = (file) => file.name.replace(/^.*?\.(?=[a-z\d]+$)/i, '');
 
 export const overrideConfig = (defaultConfig, config) => {
   const output = { ...defaultConfig };
@@ -152,7 +152,7 @@ export const getAllowedTypes = (types) => {
 };
 
 export const resetPos = (file, index) => {
-  file.pos = index;
+  file.position = index;
   return file;
 };
 
@@ -239,11 +239,13 @@ export const humanFileSizeToBytes = (humanSize) => {
  * name of "image.jpg". If the file has this name add a timestamp to
  * the file name to make it unique.
  *
- * @param {File} file File whose name needs to be made unique
+ * @param {File}               file File whose name needs to be made
+ *                                  unique
+ * @param {string|number|null} id   The ID assigned to fileData
  *
  * @returns {string} Unique file name
  */
-export const getUniqueFileName = (fileName) => {
+export const getUniqueFileName = (fileName, id = null) => {
   if (typeof fileName !== 'string' || fileName.trim() === '') {
     throw new Error(
       'getUniqueFileName() expects only argument `fileName` to be a '
@@ -265,7 +267,7 @@ export const getUniqueFileName = (fileName) => {
   /**
    * @var {string} name File name to be made unique (if required)
    */
-  const name = fileName.toLowerCase();
+  const name = fileName.trim().toLowerCase();
 
   if (genericNames.includes(name) === false) {
     // This is just a normal file with a normal file name
@@ -278,7 +280,12 @@ export const getUniqueFileName = (fileName) => {
   // unique.
   const bits = fileName.split('.', 2);
 
-  return `${bits[0]}_${Date.now()}.${bits[1]}`;
+  const _t = typeof id;
+  const _id = (_t === 'string' || _t === 'number')
+    ? id
+    : Date.now();
+
+  return `${bits[0]}_${_id}.${bits[1]}`;
 };
 
 export const getEventTypes = () => {
@@ -323,7 +330,7 @@ export const getEventTypes = () => {
       description: 'Emitted when work starts on file named in '
         + 'the data.',
     },
-    'processcount': {
+    'processCount': {
       dataType: 'number',
       description: 'Emitted when work starts on a batch of files',
     },
@@ -502,4 +509,18 @@ export const rewriteConfigError = (msg) => {
 
   return `FileSelectData constructor expects config.${key} to be `
     + `valid: ${tail}`;
+};
+
+export const strRev = (input) => input.split('').reverse().join('');
+
+/**
+ *
+ *
+ * @param {number} input
+ */
+// export const formatNum = (number) => number.toLocalString('en-AU');
+export const formatNum = (input) => {
+  return (typeof input === 'number')
+    ? input.toLocaleString('en-AU')
+    : 0;
 };
