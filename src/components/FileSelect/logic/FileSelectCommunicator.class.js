@@ -8,19 +8,19 @@ export class FileSelectCommunicator {
   }
 
   _exists (id) {
-    return typeof this._dispatchers[id] === 'Function';
+    return typeof this._dispatchers[id] === 'function';
   }
 
-  addDispatcher (dispatcher, id, replace) {
+  addDispatcher (dispatcher, id, replace = false) {
     if ((typeof dispatcher !== 'function') || typeof id !== 'string' || id.trim() === '') {
       throw new Error(
         'addDispatcher() could not add new dispatcher because '
-        + 'supplied dispatcher was not a function or id was not '
-        + 'a non-empty string',
+        + 'supplied `dispatcher` was not a function or `id` was an '
+        + 'empty string',
       );
     }
 
-    if (this._exists(id) === true && replace === false) {
+    if (this._exists(id) === true && replace !== true) {
       throw new Error(
         'addDispatcher() could not add new '
         + `dispatcher because a dispatcher with the ID "${id}" `

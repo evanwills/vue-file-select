@@ -13,6 +13,7 @@ export class ImageProcessor {
   static _maxSingleSize = 15728640;
   static _noResize = false;
 
+
   //  END:  Define static properties
   // ----------------------------------------------------------------
   // START: Define instance properties
@@ -151,6 +152,10 @@ export class ImageProcessor {
     }
   }
 
+  _getImgSrc (fileData) {
+
+  }
+
   //  END:  Private methods
   // ----------------------------------------------------------------
   // START: Public methods
@@ -177,6 +182,8 @@ export class ImageProcessor {
         || (resizeRatio < 1 && resizeRatio > 0)
       ) {
         this._dispatch('startimgpropcessing:', fileData);
+
+
 
         return this._processInner(fileData, resizeRatio)
       }

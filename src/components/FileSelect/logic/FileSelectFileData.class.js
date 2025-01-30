@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import {
   getAllowedTypes,
   getFileExtension,
+  getFileReaderOnload,
   getUniqueFileName,
   getValidMaxSingleSize,
   isValidFileType,
@@ -38,6 +39,7 @@ export class FileSelectDataFile {
   previousName;
   processing = false;
   tooLarge = null;
+  src = '';
   _metaWaiting = false;
 
   _config;
@@ -143,6 +145,7 @@ export class FileSelectDataFile {
     this._comms = null;
     this._metaWaiting = false;
     this.replaceCount = 0;
+    this.src = '';
 
     this._setConfig(config);
 
@@ -159,11 +162,23 @@ export class FileSelectDataFile {
     if (this.name !== this.ogName) {
       this._dispatch('renamed', { old: this.ogName, new: this.name });
     }
+
+    if (this.isImage) {
+      this._getImgSrc(file);
+    }
   }
 
   //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: Private method
+
+  _getImgSrc (file) {
+    const reader = new FileReader();
+
+    reader.onload = getFileReaderOnload(this);
+
+    reader.readAsDataURL(file);
+  }
 
   _dispatch (type, data) {
     if (this._comms !== null) {
@@ -396,7 +411,8 @@ export class FileSelectDataFile {
       try {
         this._comms.addDispatcher(dispatcher, id, replace);
       } catch (error) {
-        throw Error(error.message);
+        console.error(error.message);
+        // throw Error(error.message);
       }
     }
   };
@@ -420,6 +436,10 @@ export class FileSelectDataFile {
       this.processing = true;
 
       await imgProcessor.process(this);
+
+      if (this.ogSize !== this.file.size) {
+        this._getImgSrc(this.file);
+      }
 
       this.processing = false;
 

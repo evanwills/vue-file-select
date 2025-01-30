@@ -2,6 +2,11 @@
   <li>
     <p class="f-name">{{ _name }}</p>
     <div class="data">
+      <LoadingSpinner v-if="processing" />
+      <img
+        v-else-if="data.isImg() && imgSrc !== ''"
+        :alt="name"
+        :src="imgSrc" />
       <span class="data-info">
         <span class="data-info-child">
           <span class="l">Size:</span> <span class="v">{{ s }}B</span>
@@ -17,7 +22,7 @@
     </div>
 
     <p class="btn-list">
-      <button type="button" class="delete" v-on:click="emitDelete">
+      <button class="delete" :title="`Delete ${name}`" type="button" v-on:click="emitDelete">
         <span>Delete {{ name }}</span>
       </button>
       <span>
@@ -47,6 +52,7 @@
 import { computed, onBeforeMount, ref } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { formatNum } from '../logic/file-select-utils';
+import LoadingSpinner from '../../LoadingSpinner.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -85,6 +91,8 @@ const ePre = ref(null);
 const _name = ref(props.name);
 const canMoveUp = ref(false);
 const canMoveDown = ref(false);
+const processing = ref(props.data.processing);
+const imgSrc = ref(props.data.src);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -166,6 +174,13 @@ const resetImgMeta = async( _size, _height, _width, _ogHeight, _ogWidth) => {
 
 const handleFileChanges = async (type, data) => {
   switch (type) { // eslint-disable-line default-case
+    case 'imgSrcSet':
+      if (data === props.data.id) {
+        imgSrc.value = props.data.src;
+        processing.value = props.data.processing;
+      }
+      break;
+
     case 'renamed':
       _name.value = data.new;
       break;
@@ -209,6 +224,7 @@ onBeforeMount(() => {
   if (ePre.value === null) {
     ePre.value = getEpre(componentName, props.id);
     if (props.data.isImg()) {
+      processing.value = props.data.processing;
       setImgMeta();
     }
 
@@ -264,9 +280,14 @@ p {
 p:last-child {
   margin-bottom: 0.5rem;
 }
+img {
+  width: 10rem;
+  height: 10rem;
+  object-fit: contain;
+}
 .data {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   margin: 1rem auto;
   width: auto;
 }

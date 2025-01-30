@@ -524,3 +524,15 @@ export const formatNum = (input) => {
     ? input.toLocaleString('en-AU')
     : 0;
 };
+
+export const getFileReaderOnload = (context) => (e) => {
+  console.group('getFileReaderOnload()');
+  console.log('e:', e);
+  console.log('context.id:', context.id);
+  console.log('context.name:', context.name);
+  console.log('e.target:', e.target);
+  console.log('e.target.result:', e.target.result);
+  context.src = e.target.result;
+  context._dispatch('imgSrcSet', context.id);
+  console.groupEnd();
+}
