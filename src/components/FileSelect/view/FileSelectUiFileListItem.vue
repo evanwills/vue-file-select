@@ -89,8 +89,6 @@ const size = ref(props.data.size());
 const ogSize = ref(props.data.ogSize);
 const ePre = ref(null);
 const _name = ref(props.name);
-const canMoveUp = ref(false);
-const canMoveDown = ref(false);
 const processing = ref(props.data.processing);
 const imgSrc = ref(props.data.src);
 
@@ -129,8 +127,8 @@ const ogH = computed(() => {
     : 0;
 });
 
-// const canMoveUp = computed(() => (props.pos > 0));
-// const canMoveDown = computed(() => (props.pos < props.total));
+const canMoveUp = computed(() => (props.pos > 0));
+const canMoveDown = computed(() => (props.pos < props.total));
 
 //  END:  Computed state
 // ------------------------------------------------------------------
@@ -228,8 +226,6 @@ onBeforeMount(() => {
       setImgMeta();
     }
 
-    canMoveUp.value = (props.pos > 0);
-    canMoveDown.value = (props.pos < props.total);
     props.data.addDispatcher(handleFileChanges, `listItem--${props.id}`);
   }
 });

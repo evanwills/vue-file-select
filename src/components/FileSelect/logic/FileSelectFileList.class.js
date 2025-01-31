@@ -12,6 +12,7 @@ import {
 import { isObj } from '../../../utils/data-utils';
 import FileSelectFileData from './FileSelectFileData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
+// import ImageProcessor from './ImageProcessor.photon.class';
 import FileSelectCommunicator from './FileSelectCommunicator.class';
 
 // ==================================================================

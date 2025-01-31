@@ -7,10 +7,11 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   plugins: [
     vue(),
+    // One (or both) of these plugins is breaking the dev server.
     // wasm(),
     // topLevelAwait(),
   ],
   server: {
-    port: 3917
+    port: 3917,
   }
 })
