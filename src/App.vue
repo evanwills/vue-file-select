@@ -1,7 +1,7 @@
 <script setup>
-import DocUploadTailwind from './components/DocUploadTailwind.vue'
+import FileSelect from './components/FileSelect.vue'
 </script>
 
 <template>
-  <DocUploadTailwind />
+  <FileSelect />
 </template>
