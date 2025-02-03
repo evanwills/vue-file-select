@@ -58,7 +58,7 @@ const total = computed(() => (props.fileList.getFileCount() - 1));
 const setDispatch = () => {
   if (init.value === false && props.fileList !== null) {
     init.value = true;
-    props.fileList.addDispatcher(listChange, componentName);
+    props.fileList.addWatcher(listChange, componentName);
   }
 };
 

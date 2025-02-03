@@ -99,7 +99,7 @@
 
   <div v-else class="double">
     <div class="tmp tmp--75" id="gtcc1">
-      <span class="spinner gtcc spinner--xy spinner--alt">&gtcc;</span>
+      <span class="spinner gtcc spinner--xy spinner--rev spinner--alt">&gtcc;</span>
     </div>
     <div class="tmp tmp--90" id="gtcc2">
       <span class="spinner gtcc spinner--fast spinner--rev">&gtcc;</span>
@@ -240,7 +240,7 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
 }
 .spinner--xy {
   animation-name: loadingSpinnerAnimation4;
-  animation-duration: 3.91s;
+  animation-duration: 6.21s;
   animation-timing-function: ease-in-out;
 }
 .spinner--4 {

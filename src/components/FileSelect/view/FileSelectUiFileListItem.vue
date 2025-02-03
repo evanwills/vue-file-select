@@ -226,7 +226,7 @@ onBeforeMount(() => {
       setImgMeta();
     }
 
-    props.data.addDispatcher(handleFileChanges, `listItem--${props.id}`);
+    props.data.addWatcher(handleFileChanges, `listItem--${props.id}`);
   }
 });
 

@@ -391,7 +391,7 @@ export class FileSelectDataFile {
   // START: Public utility methods
 
   /**
-   * Add another dispatcher function
+   * Add another whatcher function
    *
    * @param {Function} dispatcher A function that can be used as an
    *                              event handler
@@ -406,10 +406,10 @@ export class FileSelectDataFile {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addDispatcher (dispatcher, id, replace = false) {
+  addWatcher (dispatcher, id, replace = false) {
     if (this._comms !== null) {
       try {
-        this._comms.addDispatcher(dispatcher, id, replace);
+        this._comms.addWatcher(dispatcher, id, replace);
       } catch (error) {
         console.error(error.message);
         // throw Error(error.message);
@@ -425,9 +425,9 @@ export class FileSelectDataFile {
    * @returns {boolean} TRUE if the dispatcher was removed.
    *                    FALSE otherwise
    */
-  removeDispatcher (id) {
+  removeWatcher (id) {
     return (this._comms !== null)
-      ? this._comms.removeDispatcher(id)
+      ? this._comms.removeWatcher(id)
       : false;
   }
 

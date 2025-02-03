@@ -147,11 +147,22 @@ import FileSelectCommunicator from './FileSelectCommunicator.class';
  */
 
 /**
- * @typedef Dispatcher
+ * A function that is called every time an event is dispatched and
+ * does an action if the event is of a type it cares about.
+ *
+ * @typedef Watcher
  * @type {Function}
  *
  * @param {string} evenName Name of the event being dispatched
- * @param {AllCompleteEventData|CompleteEventData|InvalidEventData|ProcesscountEventData|ProcessingEventData|ToobigEventData|ToomanyEventData} data Data associated with the event
+ * @param {
+ *          AllCompleteEventData|
+ *          CompleteEventData|
+ *          InvalidEventData|
+ *          ProcesscountEventData|
+ *          ProcessingEventData|
+ *          ToobigEventData|
+ *          ToomanyEventData
+ * } data Data associated with the event
  *
  * @returns {any|void}
  */
@@ -184,9 +195,9 @@ import FileSelectCommunicator from './FileSelectCommunicator.class';
  *
  * @class FileSelectData
  *
- * @param {imgProcessor|null} imgProcessor Object that can be used to
+ * @param {ImageProcessor|null} imgProcessor Object that can be used to
  *                                         manipulate images
- * @param {Dispatcher|null}   dispatcher   Function to be called to
+ * @param {Watcher|null}      watcher      Function to be called to
  *                                         inform the client about
  *                                         things that happen while
  *                                         processing a file.
@@ -536,8 +547,8 @@ export class FileSelectFileList {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor (canvas = null, dispatcher = null, config = null) {
-    this._comms = new FileSelectCommunicator(dispatcher);
+  constructor (canvas = null, watcher = null, config = null) {
+    this._comms = new FileSelectCommunicator(watcher);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
@@ -552,7 +563,7 @@ export class FileSelectFileList {
 
     if (this.imagesAllowed()) {
       this._imgProcessor.forceInit();
-      this._comms.addDispatcher(this._handleImageMeta(this), 'FileSelectFileList--image-resize')
+      this._comms.addWatcher(this._handleImageMeta(this), 'FileSelectFileList--image-resize')
     }
   }
 
@@ -1112,9 +1123,9 @@ export class FileSelectFileList {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addDispatcher (dispatcher, id, replace = false) {
+  addWatcher (watcher, id, replace = false) {
     try {
-      this._comms.addDispatcher(dispatcher, id, replace);
+      this._comms.addWatcher(watcher, id, replace);
     } catch (error) {
       throw Error(error.message);
     }
@@ -1128,7 +1139,7 @@ export class FileSelectFileList {
    * @returns {boolean} TRUE if the dispatcher was removed.
    *                    FALSE otherwise
    */
-  removeDispatcher (id) {
+  removeWatcher (id) {
     return this._comms.removeDipatcher(id);
   }
 
