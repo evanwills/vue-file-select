@@ -1,5 +1,4 @@
-// import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectFileData from "./FileSelectFileData.class";
+import { setLocalValue } from "../../../utils/data-utils";
 import ImageProcessor from "./ImageProcessor.class";
 import imageBlobReduce from "image-blob-reduce";
 
@@ -14,6 +13,7 @@ export class IBRimageProcessor extends ImageProcessor {
   // START: Define instance properties
 
   _obj = 'ImageBlobReduceProcessor';
+
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
@@ -89,6 +89,8 @@ export class IBRimageProcessor extends ImageProcessor {
 
       if (error.message.includes('Pica: cannot use getImageData on canvas')) {
         IBRimageProcessor._noResize = true;
+        setLocalValue('noResize', 1);
+        this._dispatch('noResize', true);
       }
       file.processing = false;
       this._dispatch('endImgProcessing', file);

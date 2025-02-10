@@ -2,6 +2,7 @@ import { compileScript } from "vue/compiler-sfc";
 import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
 import FileSelectCommunicator from "./FileSelectCommunicator.class";
 import FileSelectFileData from "./FileSelectFileData.class";
+import { getLocalValue } from "../../../utils/data-utils";
 
 export class ImageProcessor {
   // ----------------------------------------------------------------
@@ -26,6 +27,11 @@ export class ImageProcessor {
   //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
+
+
+  static canResize () {
+    return getLocalValue('noResize', 0) != 1; // eslint-disable-line eqeqeq
+  }
 
   static getGreyscale () { return this._greyscale; }
   static getJpegCompression () { return this._jpegCompression; }
@@ -78,6 +84,15 @@ export class ImageProcessor {
 
     this._canvas = canvas;
     this._obj = 'ImageProcessor';
+
+    // Check whether image resizing is possible.
+    this._noResize = ImageProcessor.canResize() === false;
+
+    if (this._noResize === true) {
+      // Looks like resizing is not possible so we'll send out a
+      // message
+      this._dispatch('noResize', true);
+    }
 
 
     try {
@@ -152,7 +167,7 @@ export class ImageProcessor {
     }
   }
 
-  _getImgSrc (fileData) {
+  async _getImgSrc (fileData) {
 
   }
 
@@ -177,13 +192,12 @@ export class ImageProcessor {
       //       height, width & format info to itself
       const resizeRatio = this._getResizeRatio(fileData);
 
-      if (fileData.tooLarge === true
+      if (this._noResize === false
+        && (fileData.tooLarge === true
         || this._config.getGreyscale === true
-        || (resizeRatio < 1 && resizeRatio > 0)
+        || (resizeRatio < 1 && resizeRatio > 0))
       ) {
         this._dispatch('startimgpropcessing:', fileData);
-
-
 
         return this._processInner(fileData, resizeRatio)
       }
@@ -193,6 +207,8 @@ export class ImageProcessor {
 
     return fileData;
   }
+
+  noResize () { return this._noResize; }
 
   //  END:  Public methods
   // ----------------------------------------------------------------

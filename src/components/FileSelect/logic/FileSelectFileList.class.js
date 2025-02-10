@@ -318,6 +318,8 @@ export class FileSelectFileList {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
+  _canResize = true;
+
   /**
    * An object containing instance versions of the five static config values:
 
@@ -559,11 +561,17 @@ export class FileSelectFileList {
     } catch (e) {
       throw Error(e.message);
     }
-    this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
 
-    if (this.imagesAllowed()) {
+    const noResize = ImageProcessor.canResize() === false
+
+    this._canResize = (this.imagesAllowed() === true && noResize === false);
+
+    if (this._canResize === true) {
+      this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
       this._imgProcessor.forceInit();
       this._comms.addWatcher(this._handleImageMeta(this), 'FileSelectFileList--image-resize')
+    } else if (noResize === true) {
+      this._comms.dispatch('noResize', true, 'FileSelectFileList');
     }
   }
 
@@ -742,7 +750,7 @@ export class FileSelectFileList {
    * @param {FileSelectFileData} fileData
    */
   async _processImage (fileData) {
-    if (fileData.isImage === true && fileData.replaceCount === 0) {
+    if (this._canResize === true && fileData.isImage === true && fileData.replaceCount === 0) {
       this._imageCount += 1;
 
       if (fileData.tooLarge === true

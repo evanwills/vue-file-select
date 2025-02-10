@@ -11,16 +11,16 @@
       v-on:change="handleFileChange($event)" />
     <canvas ref="fileSelectCanvas"></canvas>
     <dialog v-if="selectedFiles !== null" ref="fileUploadUI">
+      <FileSelectUiPreview
+        v-show="previewing === true"
+        :canvas="fileSelectCanvas"
+        :file-list="selectedFiles"
+        :id="previewID" />
+      <FileSelectUiFileList
+        v-show="previewing === false"
+        :id="listID"
+        :file-list="selectedFiles" />
     </dialog>
-    <FileSelectUiPreview
-      v-show="previewing === true"
-      :canvas="fileSelectCanvas"
-      :file-list="selectedFiles"
-      :id="previewID" />
-    <FileSelectUiFileList
-      v-show="previewing === false"
-      :id="listID"
-      :file-list="selectedFiles" />
   </div>
 </template>
 
@@ -54,6 +54,7 @@ const props = defineProps({
   noInvalid: { type: Boolean, required: false, default: false },
   accept: { type: String, required: false, default: 'JPG PNG DOCX PDF' },
   jpgCompression: { type: Number, required: false, default: 0.85 },
+  noResizeWarning: { type: String, required: false, default: '' },
 });
 
 //  END:  Props
@@ -67,6 +68,7 @@ const selectedFiles = ref(null);
 const acceptTypes = ref('image/jpeg, image/png application/msdoc');
 const fileSelectCanvas = ref(null);
 const fileUploadUiInput = ref(null);
+const noResize = ref(false);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -135,6 +137,9 @@ const handleResizerEvents = (type, data) => {
         fileUploadUiInput.value.value = '';
       }
       break;
+
+    case 'noResize':
+      noResize.value = (data !== false);
 
     default:
       break;
