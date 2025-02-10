@@ -13,7 +13,7 @@ import { isObj } from '../../../utils/data-utils';
 import FileSelectFileData from './FileSelectFileData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
 // import ImageProcessor from './ImageProcessor.photon.class';
-import FileSelectCommunicator from './FileSelectCommunicator.class';
+import { FileSelectLoggingCommunicator } from './FileSelectCommunicator.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -387,6 +387,7 @@ export class FileSelectFileList {
    * @returns {number}
    */
   static getGreyscale () { return ImageProcessor.getGreyscale(); }
+
   static getJpegCompression () {
     return ImageProcessor.getJpegCompression();
   }
@@ -550,7 +551,7 @@ export class FileSelectFileList {
   // START: Constructor method
 
   constructor (canvas = null, watcher = null, config = null) {
-    this._comms = new FileSelectCommunicator(watcher);
+    this._comms = new FileSelectLoggingCommunicator(watcher);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
@@ -890,7 +891,9 @@ export class FileSelectFileList {
    *
    * @returns {object}
    */
-  eventTypes () { return getEventTypes(); }
+  eventTypes () { return FileSelectFileList.getEventTypes(); }
+
+  getAllowedTypes () { return this._config.defaultAllowed }
 
   /**
    * Get a list of files (and metadata) held by this instance of
@@ -1066,6 +1069,10 @@ export class FileSelectFileList {
    */
   maxTotalSize () { return this._config.maxTotalSize; }
 
+  allowMultiple () {
+    return (this._config.maxFileCount > 1 && this._config.maxFileCount > this._fileList.length);
+  }
+
   /**
    * Whether or not it would be OK to upload the selected files as is
    *
@@ -1148,7 +1155,7 @@ export class FileSelectFileList {
    *                    FALSE otherwise
    */
   removeWatcher (id) {
-    return this._comms.removeDipatcher(id);
+    return this._comms.removeWatcher(id);
   }
 
   /**
@@ -1215,6 +1222,11 @@ export class FileSelectFileList {
     }
 
     return (this._fileList.length < l);
+  }
+
+  deleteAll () {
+    this._fileList = [];
+    this._totalSize = 0;
   }
 
   /**

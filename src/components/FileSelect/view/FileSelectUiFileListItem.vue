@@ -2,10 +2,11 @@
   <li>
     <p class="f-name">{{ _name }}</p>
     <div class="data">
-      <LoadingSpinner v-if="processing" />
+      <LoadingSpinner v-if="processing" class="img" />
       <img
         v-else-if="data.isImg() && imgSrc !== ''"
         :alt="name"
+        class="img"
         :src="imgSrc" />
       <span class="data-info">
         <span class="data-info-child">
@@ -25,7 +26,7 @@
       <button class="delete" :title="`Delete ${name}`" type="button" v-on:click="emitDelete">
         <span>Delete {{ name }}</span>
       </button>
-      <span>
+      <span v-if="noMove === false">
         <button v-if="canMoveUp" class="move move-step move-up" type="button" v-on:click="emitMoveUp">
           <span>Move {{ name }} up one place</span>
         </button>
@@ -35,7 +36,7 @@
         </button>
       </span>
 
-      <span>
+      <span v-if="noMove === false">
         <button v-if="canMoveUp" class="move move-limit move-start" type="button" v-on:click="emitMoveToStart">
           <span>Move {{ name }} to start</span>
         </button>
@@ -72,6 +73,7 @@ const props = defineProps({
   data: { type: Object, required: true },
   id: { type: String, required: true },
   name: { type: String, required: true },
+  noMove: { type: Boolean, required: false, default: false },
   ok: { type: Boolean, required: true },
   pos: { type: Number, required: true },
   total: { type: Number, required: true },
@@ -276,15 +278,16 @@ p {
 p:last-child {
   margin-bottom: 0.5rem;
 }
-img {
+.img {
   width: 10rem;
-  height: 10rem;
+  max-height: 10rem;
   object-fit: contain;
 }
 .data {
   display: flex;
   justify-content: space-between;
   margin: 1rem auto;
+  column-gap: 1rem;
   width: auto;
 }
 .data > p {

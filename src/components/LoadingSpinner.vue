@@ -120,9 +120,12 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
 </script>
 
 <style>
+:root {
+  --size: 10rem;
+}
 .tmp {
-  height: 15rem;
-  width: 15rem;
+  height: var(--size);
+  width: var(--size);
   margin: 0.5rem;
   position: relative;
 }
@@ -151,10 +154,10 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
   transform: rotate(-75deg);
 }
 .double {
-  height: 15rem;
+  height: var(--size);
   margin: 0.5rem;
   position: relative;
-  width: 15rem;
+  width: var(--size);
 }
 .double > .tmp {
   position: absolute;
@@ -191,8 +194,8 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
   z-index: 1000;
 }
 .pos::before {
-  --pos-b-w: 5.5rem;
-  --pos-b-h: 5.5rem;
+  --pos-b-w: calc(var(--size) * (5.5 / 15));
+  --pos-b-h: calc(var(--size) * (5.5 / 15));
   border-radius: 50%;
   height: var(--pos-b-h);
   left: calc(50% - calc(var(--pos-b-w) / 2));
@@ -201,7 +204,7 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
 }
 .pos::after {
   --pos-a-w: 100%;
-  --pos-a-h: 1.5rem;
+  --pos-a-h: calc(var(--size) * 0.1);;
   height: var(--pos-a-h);
   left: calc(50% - calc(var(--pos-a-w) / 2));
   top: calc(50% - calc(var(--pos-a-h) / 2));
@@ -221,9 +224,9 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
   border-radius: 50%;
   color: #fff;
   display: block;
-  font-size: 10rem;
+  font-size: calc(var(--size) * (2 / 3));;
   font-weight: bold;
-  height: 15rem;
+  height: var(--size);
   position: relative;
   transform-origin: 50% 50%;
   width: 15rem;
@@ -265,52 +268,52 @@ defineProps({ which: { type: String, required: false, default: "gtcc" } });
   animation-timing-function: ease-in-out;
 }
 .spinner.star {
-  line-height: 14rem;
-  text-indent: 3.175rem;
+  line-height: calc(var(--size) * (14 / 15));
+  text-indent: calc(var(--size) * (3.175 / 15));
 }
 .spinner.cirscir {
-  line-height: 14.2rem;
-  text-indent: 2.3rem;
+  line-height: calc(var(--size) * (14.2 / 15));
+  text-indent: calc(var(--size) * (2.3 / 15));
 }
 .spinner.boxbox {
-  line-height: 17.35rem;
-  text-indent: 2.33rem;
+  line-height: calc(var(--size) * (17.35 / 15));
+  text-indent: calc(var(--size) * (2.33 / 15));
 }
 .spinner.bigotimes {
-  line-height: 14.1rem;
-  text-indent: 3rem;
+  line-height: calc(var(--size) * (14.1 / 15));
+  text-indent: calc(var(--size) * (3 / 15));
 }
 .spinner.circlearrowright {
-  line-height: 14.275rem;
-  text-indent: 2.975rem;
+  line-height: calc(var(--size) * (14.275 / 15));
+  text-indent: calc(var(--size) * (2.975 / 15));
 }
 .spinner.cirE {
-  line-height: 14.3rem;
-  text-indent: 2.45rem;
+  line-height: calc(var(--size) * (14.3 / 15));
+  text-indent: calc(var(--size) * (2.45 / 15));
 }
 .spinner.cirmid {
-  line-height: 18.05rem;
-  text-indent: 5.28rem;
+  line-height: calc(var(--size) * (18.05 / 15));
+  text-indent: calc(var(--size) * (5.28 / 15));
 }
 .spinner.cupcap {
-  line-height: 14.3rem;
-  text-indent: 4.59rem;
+  line-height: calc(var(--size) * (14.3 / 15));
+  text-indent: calc(var(--size) * (4.59 / 15));
 }
 .spinner.gtcc {
-  line-height: 14.3rem;
-  text-indent: 1rem;
+  line-height: calc(var(--size) * (14.3 / 15));
+  text-indent: calc(var(--size) * (1 / 15));
 }
 .spinner.pointint {
-  line-height: 15.1rem;
-  text-indent: 4.5rem;
+  line-height: calc(var(--size) * (15.1 / 15));
+  text-indent: calc(var(--size) * (4.5 / 15));
 }
 .spinner.telrec {
-  line-height: 17.1rem;
-  text-indent: 3.5rem;
+  line-height: calc(var(--size) * (17.1 / 15));
+  text-indent: calc(var(--size) * (3.5 / 15));
 }
 .spinner.vellip {
-  line-height: 14.8rem;
-  text-indent: 5.875rem;
+  line-height: calc(var(--size) * (14.8 / 15));
+  text-indent: calc(var(--size) * (5.875 / 15));
 }
 
 @keyframes loadingSpinnerAnimation {
