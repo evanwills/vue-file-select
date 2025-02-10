@@ -279,6 +279,7 @@ p:last-child {
   margin-bottom: 0.5rem;
 }
 .img {
+  font-size: 10rem;
   width: 10rem;
   max-height: 10rem;
   object-fit: contain;
