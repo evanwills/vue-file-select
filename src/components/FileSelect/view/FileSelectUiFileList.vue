@@ -29,7 +29,12 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, onUpdated, ref } from 'vue';
+import {
+  computed,
+  onBeforeMount,
+  onUpdated,
+  ref,
+} from 'vue';
 import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
 import { getEpre } from '../../../utils/general-utils';
 import FileSelectUiInput from './FileSelectUiInput.vue';
@@ -76,6 +81,21 @@ const inputID = computed(() => `${props.id}--add-files`);
 // ------------------------------------------------------------------
 // START: Helper methods
 
+const listChange = (type, data) => {
+  const actions = [
+    'added',
+    'replaced',
+    'completed',
+    'moved',
+    'deleted',
+    'processCount',
+    'processed',
+  ];
+  if (actions.includes(type) || (type === 'processCount' && data === 0)) {
+    files.value = props.fileList.getAllFilesRaw();
+  }
+};
+
 const setWatcher = () => {
   if (init.value === false && props.fileList !== null) {
     init.value = true;
@@ -101,21 +121,6 @@ const deleteFile = (event) => {
 
 const moveFile = ({ id, relPos }) => {
   props.fileList.moveFile(id, relPos);
-};
-
-const listChange = (type, data) => {
-  const actions = [
-    'added',
-    'replaced',
-    'completed',
-    'moved',
-    'deleted',
-    'processCount',
-    'processed',
-  ];
-  if (actions.includes(type) || (type === 'processCount' && data === 0)) {
-    files.value = props.fileList.getAllFilesRaw();
-  }
 };
 
 //  END:  Event handler methods

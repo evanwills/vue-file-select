@@ -28,17 +28,20 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, onMounted, ref } from 'vue';
+import {
+  computed,
+  onBeforeMount,
+  onMounted,
+  ref,
+} from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 // import { FilSelectData } from './FileSelectData.IBR.class.js';
-import FileSelectFileList from '../logic/FileSelectFileList.class';
+import { FileSelectFileList } from '../logic/FileSelectFileList.class';
+import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
+import { getAllowedTypes } from '../logic/file-select-utils';
 import FileSelectUiPreview from './FileSelectUiPreview.vue';
 import FileSelectUiFileList from './FileSelectUiFileList.vue';
-import { getAllowedTypes } from '../logic/file-select-utils';
-import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
 import FileSelectUiInput from './FileSelectUiInput.vue';
-
-
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -67,7 +70,6 @@ const props = defineProps({
 // ------------------------------------------------------------------
 // START: Local state
 
-let resizer = null;
 let ePre = null;
 const previewing = ref(false);
 const selectedFiles = ref(null);
@@ -95,6 +97,14 @@ const multiple = computed(() => props.maxFileCount > 1);
 // ------------------------------------------------------------------
 // START: Helper methods
 
+const handleResizerEvents = (type, data) => {
+  if (type === 'added') {
+    doShowModal(fileSelectUI.value);
+  } else if (type === 'noResize') {
+    noResize.value = (data !== false);
+  }
+};
+
 const initFiles = () => {
   selectedFiles.value = new FileSelectFileList(
     fileSelectCanvas.value,
@@ -120,34 +130,20 @@ const retryInitFiles = (_initFiles, files, canvas) => () => {
       setTimeout(retryInitFiles(_initFiles, files, canvas), 100);
     }
   }
-}
+};
 
 //  END:  Helper methods
 // ------------------------------------------------------------------
 // START: Event handler methods
 
-const handleResizerEvents = (type, data) => {
-  switch (type) {
-    case 'added':
-      doShowModal(fileSelectUI.value);
-      break;
-
-    case 'noResize':
-      noResize.value = (data !== false);
-
-    default:
-      break;
-  }
-}
-
 const handleUpload = () => {
 
-}
+};
 
 const handleCancel = () => {
   doCloseModal(fileSelectUI.value);
   selectedFiles.value.deleteAll();
-}
+};
 
 //  END:  Event handler methods
 // ------------------------------------------------------------------
@@ -163,7 +159,7 @@ onBeforeMount(() => {
     acceptTypes.value = getAllowedTypes(props.accept);
     acceptTypes.value = acceptTypes.value.map((type) => type.mime).join(', ');
   }
-})
+});
 
 onMounted(() => {
   retryInitFiles(initFiles, selectedFiles, fileSelectCanvas)();

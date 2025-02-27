@@ -1,7 +1,12 @@
-import { compileScript } from 'vue/compiler-sfc';
-import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from './file-select-utils';
-import { FileSelectCommunicatorLogging as FileSelectCommunicator} from './FileSelectCommunicatorLogging.class';
-import FileSelectFileData from './FileSelectFileData.class';
+import {
+  getValidJpegCompression,
+  getValidMaxImgPx,
+  getValidMaxSingleSize,
+  isFileDataObj,
+  overrideConfig,
+  rewriteConfigError,
+} from './file-select-utils';
+import { FileSelectCommunicatorLogging as FileSelectCommunicator } from './FileSelectCommunicatorLogging.class';
 import { getLocalValue } from '../../../utils/data-utils';
 
 export class ImageProcessor {
@@ -9,43 +14,52 @@ export class ImageProcessor {
   // START: Define static properties
 
   static _greyscale = false;
-  static _jpegCompression = 0.85;
-  static _maxImgPx = 1500;
-  static _maxSingleSize = 15728640;
-  static _noResize = false;
 
+  static _jpegCompression = 0.85;
+
+  static _maxImgPx = 1500;
+
+  static _maxSingleSize = 15728640;
+
+  static _noResize = false;
 
   //  END:  Define static properties
   // ----------------------------------------------------------------
   // START: Define instance properties
 
   _canvas = null;
+
   _config = null;
+
   _comms = null;
+
   _obj = 'ImageProcessor';
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
-
-  static canResize () {
+  static canResize() {
     return getLocalValue('noResize', 0) != 1; // eslint-disable-line eqeqeq
   }
 
-  static getGreyscale () { return this._greyscale; }
-  static getJpegCompression () { return this._jpegCompression; }
-  static getMaxImgPx () { return this._maxImgPx; }
-  static getMaxSingleSize () { return this._maxSingleSize; }
-  static getNoResize () { return this._noResize; }
+  static getGreyscale() { return this._greyscale; }
 
-  static setGreyscale (greyscale) {
+  static getJpegCompression() { return this._jpegCompression; }
+
+  static getMaxImgPx() { return this._maxImgPx; }
+
+  static getMaxSingleSize() { return this._maxSingleSize; }
+
+  static getNoResize() { return this._noResize; }
+
+  static setGreyscale(greyscale) {
     if (typeof greyscale === 'boolean') {
       this._greyscale = greyscale;
     }
   }
 
-  static setJpegCompression (jpegCompression) {
+  static setJpegCompression(jpegCompression) {
     try {
       this._jpegCompression = getValidJpegCompression(jpegCompression);
     } catch (error) {
@@ -53,7 +67,7 @@ export class ImageProcessor {
     }
   }
 
-  static setMaxImgPx (maxImgPx) {
+  static setMaxImgPx(maxImgPx) {
     try {
       this._maxImgPx = getValidMaxImgPx(maxImgPx);
     } catch (error) {
@@ -61,7 +75,7 @@ export class ImageProcessor {
     }
   }
 
-  static setMaxSingleSize (maxSingleSize) {
+  static setMaxSingleSize(maxSingleSize) {
     try {
       this._maxSingleSize = getValidMaxSingleSize(maxSingleSize);
     } catch (error) {
@@ -73,13 +87,13 @@ export class ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null, comms = null) {
+  constructor(canvas, config = null, comms = null) {
     if (typeof canvas === 'undefined' || canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
       throw new Error(
         'ImageProcessor constructor expects first argument '
         + '`canvas` to be an instance of an HTML canvas '
         + 'element/DOM node.',
-      )
+      );
     }
 
     this._canvas = canvas;
@@ -93,7 +107,6 @@ export class ImageProcessor {
       // message
       this._dispatch('noResize', true);
     }
-
 
     try {
       this._setConfig(config);
@@ -112,7 +125,7 @@ export class ImageProcessor {
   // ----------------------------------------------------------------
   // START: Private methods
 
-  _setConfig (config) {
+  _setConfig(config) {
     this._config = {
       greyScale: ImageProcessor._greyscale,
       jpegCompression: ImageProcessor._jpegCompression,
@@ -132,18 +145,16 @@ export class ImageProcessor {
    * @param {FileSelectFileData} fileData
    * @returns {FileSelectFileData}
    */
-  async _getResizeRatio (fileData) {
+  async _getResizeRatio(fileData) {
     await fileData.setImageMetadata();
 
     if (fileData.format === 'portrait') {
       if (fileData.height() > this._config.maxImgPx) {
         return this._config.maxImgPx / fileData.height();
       }
-    } else {
+    } else if (fileData.width() > this._config.maxImgPx) {
       // This works for both landscape and square format images.
-      if (fileData.width() > this._config.maxImgPx) {
-        return this._config.maxImgPx / fileData.width();
-      }
+      return this._config.maxImgPx / fileData.width();
     }
 
     return 1;
@@ -154,28 +165,27 @@ export class ImageProcessor {
    *
    * @param {FileSelectFileData} _fileData
    */
-  async _processInner (_fileData) {
+  // eslint-disable-next-line class-methods-use-this, no-unused-vars
+  async _processInner(_fileData) {
+    // this is a placeholder method for child image processor classes
     throw new Error(
       'ImageProcessor._processInner() must be overridden by a sub '
       + 'class.',
     );
   }
 
-  _dispatch (type, data) {
+  _dispatch(type, data) {
     if (this._comms !== null) {
       this._comms.dispatch(type, data, this._obj);
     }
-  }
-
-  async _getImgSrc (fileData) {
-
   }
 
   //  END:  Private methods
   // ----------------------------------------------------------------
   // START: Public methods
 
-  forceInit () {
+  forceInit() { // eslint-disable-line class-methods-use-this
+    // this is a placeholder method for child image processor classes
   }
 
   /**
@@ -185,8 +195,8 @@ export class ImageProcessor {
    *
    * @returns {FileSelectFileData}
    */
-  async process (fileData) {
-    if (fileData instanceof FileSelectFileData && fileData.isImg() === true) {
+  async process(fileData) {
+    if (isFileDataObj(fileData) && fileData.isImage === true) {
       // NOTE: _getResizeRatio() has the (potential) side effect of
       //       modifying `fileData` by causing fileData to add image
       //       height, width & format info to itself
@@ -199,7 +209,7 @@ export class ImageProcessor {
       ) {
         this._dispatch('startimgpropcessing:', fileData);
 
-        return this._processInner(fileData, resizeRatio)
+        return this._processInner(fileData, resizeRatio);
       }
 
       return fileData;
@@ -208,7 +218,7 @@ export class ImageProcessor {
     return fileData;
   }
 
-  noResize () { return this._noResize; }
+  noResize() { return this._noResize; }
 
   //  END:  Public methods
   // ----------------------------------------------------------------

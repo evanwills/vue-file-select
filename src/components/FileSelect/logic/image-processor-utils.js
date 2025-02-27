@@ -1,4 +1,3 @@
-
 /**
  * Get an image object
  *
@@ -42,6 +41,6 @@ export const getImageMetadata = async (file) => {
     height: img.height,
     width: img.width,
   };
-}
+};
 
 export const fileIsImage = (file) => file.type.startsWith('image/');

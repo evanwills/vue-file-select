@@ -1,6 +1,7 @@
-import { setLocalValue } from "../../../utils/data-utils";
-import ImageProcessor from "./ImageProcessor.class";
-import imageBlobReduce from "image-blob-reduce";
+import ImageBlobReduce from 'image-blob-reduce';
+
+import { setLocalValue } from '../../../utils/data-utils';
+import { ImageProcessor } from './ImageProcessor.class';
 
 export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
@@ -14,7 +15,6 @@ export class IBRimageProcessor extends ImageProcessor {
 
   _obj = 'ImageBlobReduceProcessor';
 
-
   //  END:  Define instance properties
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
@@ -23,7 +23,7 @@ export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null, comms = null) {
+  constructor(canvas, config = null, comms = null) {
     try {
       super(canvas, config, comms);
     } catch (e) {
@@ -31,7 +31,7 @@ export class IBRimageProcessor extends ImageProcessor {
     }
     this._obj = 'ImageBlobReduceProcessor';
     if (IBRimageProcessor._reducer === null) {
-      IBRimageProcessor._reducer = new imageBlobReduce();
+      IBRimageProcessor._reducer = new ImageBlobReduce();
     }
   }
 
@@ -47,27 +47,28 @@ export class IBRimageProcessor extends ImageProcessor {
    *                                  processed
    * @returns {Function<{Blob}}}
    */
-  _processImageBlobThen (fileData) {
+  _processImageBlobThen(fileData) {
     return (blob) => {
       const tmp = new File(
         [blob],
         fileData.name,
         {
           type: blob.type,
-          lastModified: fileData.lastModified(),
-        }
+          lastModified: fileData.lastModified,
+        },
       );
 
       // sometimes the resized image ends up being larger than the
       // original because the original was better optimised.
       // Only replace the image if the new one is smaller that the
       // old one.
-      if (tmp.size < fileData.size()) {
-        fileData.file = tmp
+      if (tmp.size < fileData.size) {
+        fileData.file = tmp; // eslint-disable-line no-param-reassign
         fileData.setImageMetadata(true);
+        fileData.resetImgSrc();
       }
 
-      fileData.processing = false;
+      fileData.processing = false; // eslint-disable-line no-param-reassign
 
       this._dispatch('endImgProcessing', fileData);
       return fileData;
@@ -83,7 +84,7 @@ export class IBRimageProcessor extends ImageProcessor {
    *                                 processed
    * @returns {Function<{Blob}}}
    */
-  _processImageBlobCatch (file) {
+  _processImageBlobCatch(file) {
     return (error) => {
       this._dispatch('resizeerror', error.message);
 
@@ -92,14 +93,14 @@ export class IBRimageProcessor extends ImageProcessor {
         setLocalValue('noResize', 1);
         this._dispatch('noResize', true);
       }
-      file.processing = false;
+      file.processing = false; // eslint-disable-line no-param-reassign
       this._dispatch('endImgProcessing', file);
-    }
+    };
   }
 
-  async _processInner (fileData, _resizeRatio) {
+  async _processInner(fileData, _resizeRatio) { // eslint-disable-line no-unused-vars
     this._dispatch('startprocessing', fileData);
-    fileData.processing = true;
+    fileData.processing = true; // eslint-disable-line no-param-reassign
     return IBRimageProcessor._reducer.toBlob(
       fileData.file,
       { max: this._config.maxImgPx },
@@ -111,7 +112,8 @@ export class IBRimageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Public methods
 
-  forceInit () {
+  forceInit() {
+    super.forceInit();
   }
 
   //  END:  Public methods

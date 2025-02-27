@@ -37,7 +37,7 @@ export const fileSelect = (customConfig = {}) => () => {
     let sum = 0;
 
     for (const _file of fileList.value) {
-      sum += _file.size();
+      sum += _file.size;
     }
 
     totalSize.value = sum;
@@ -120,7 +120,7 @@ export const fileSelect = (customConfig = {}) => () => {
       fileList.value.push(file);
     }
 
-    if (file.tooHeavy() || file.ok === false || file.invalid) {
+    if (file.tooHeavy || file.ok === false || file.invalid) {
       if (badIds.value.includes(file.id) === false) {
         file.position = fileCount.value;
         badIds.value.push(file.id);

@@ -1,19 +1,20 @@
 <template>
   <li>
-    <p class="f-name">{{ _name }}</p>
+    <p class="f-name"><span v-html="fileName"></span> <span>#{{ id }}</span></p>
     <div class="data">
       <LoadingSpinner v-if="processing" class="img" />
       <img
-        v-else-if="data.isImg() && imgSrc !== ''"
+        v-else-if="data.isImage && imgSrc !== ''"
         :alt="name"
         class="img"
+        :key="imgSrcReset"
         :src="imgSrc" />
       <span class="data-info">
         <span class="data-info-child">
           <span class="l">Size:</span> <span class="v">{{ s }}B</span>
           (<span class="l">OG size:</span> <span class="v">{{ ogS }}B</span>)
         </span>
-        <span class="data-info-child" v-if="data.isImg()">
+        <span class="data-info-child" v-if="data.isImage">
           <span class="l">Width:</span> <span class="v">{{ w }}px</span>
           (<span class="l">OG width:</span> <span class="v">{{ ogW }}px</span>)<br />
           <span class="l">Height:</span> <span class="v">{{ h }}px</span>
@@ -50,7 +51,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeMount, ref } from 'vue';
+import { computed, nextTick, onBeforeMount, ref } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { formatNum } from '../logic/file-select-utils';
 import LoadingSpinner from '../../LoadingSpinner.vue';
@@ -87,12 +88,13 @@ const width = ref(0);
 const height = ref(0);
 const ogHeight = ref(0);
 const ogWidth = ref(0);
-const size = ref(props.data.size());
+const size = ref(props.data.size);
 const ogSize = ref(props.data.ogSize);
 const ePre = ref(null);
 const _name = ref(props.name);
 const processing = ref(props.data.processing);
 const imgSrc = ref(props.data.src);
+const imgSrcReset = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -132,6 +134,8 @@ const ogH = computed(() => {
 const canMoveUp = computed(() => (props.pos > 0));
 const canMoveDown = computed(() => (props.pos < props.total));
 
+const fileName = computed(() => props.name.replace(/(?=\.)/g, '<wbr />'));
+
 //  END:  Computed state
 // ------------------------------------------------------------------
 // START: Helper methods
@@ -145,16 +149,16 @@ const emitDelete = () => {
 };
 
 const emitMoveUp = () => {
-  emit('move', { id: props.id, relPos: -1});
+  emit('move', { id: props.id, relPos: -1 });
 };
 const emitMoveDown = () => {
-  emit('move', { id: props.id, relPos: 1});
+  emit('move', { id: props.id, relPos: 1 });
 };
 const emitMoveToStart = () => {
-  emit('move', { id: props.id, relPos: -1000});
+  emit('move', { id: props.id, relPos: -1000 });
 };
 const emitMoveToEnd = () => {
-  emit('move', { id: props.id, relPos: 1000});
+  emit('move', { id: props.id, relPos: 1000 });
 };
 
 const setImgMeta = async () => {
@@ -164,7 +168,7 @@ const setImgMeta = async () => {
   ogHeight.value = await props.data.ogHeight();
 };
 
-const resetImgMeta = async( _size, _height, _width, _ogHeight, _ogWidth) => {
+const resetImgMeta = async (_size, _height, _width, _ogHeight, _ogWidth) => {
   height.value = _height;
   size.value = _size;
   width.value = _width;
@@ -173,42 +177,48 @@ const resetImgMeta = async( _size, _height, _width, _ogHeight, _ogWidth) => {
 };
 
 const handleFileChanges = async (type, data) => {
-  switch (type) { // eslint-disable-line default-case
-    case 'imgSrcSet':
-      if (data === props.data.id) {
+  if (data === props.data.id) {
+    switch (type) { // eslint-disable-line default-case
+      case 'imgSrcSet':
         imgSrc.value = props.data.src;
         processing.value = props.data.processing;
-      }
-      break;
+        await nextTick();
+        imgSrcReset.value = Date.now();
+        break;
 
-    case 'renamed':
-      _name.value = data.new;
-      break;
+      case 'renamed':
+        _name.value = props.data.name;
+        break;
 
-    case 'resized':
-    case 'imageMetaSet':
-      resetImgMeta(
-        props.data.size(),
-        await data.height(),
-        await data.width(),
-        await data.ogHeight(),
-        await data.ogWidth(),
-      );
-      break;
-
-    case 'replaced':
-      _name.value = data.new;
-
-      if (props.data.isImg() === true) {
+      case 'resized':
+      case 'imageMetaSet':
         resetImgMeta(
-          props.data.size(),
-          await data.height(),
-          await data.width(),
-          await data.ogHeight(),
-          await data.ogWidth(),
+          props.data.size,
+          await props.data.height(),
+          await props.data.width(),
+          await props.data.ogHeight(),
+          await props.data.ogWidth(),
         );
-      }
-      break;
+        break;
+
+      case 'replaced':
+        _name.value = props.data.name;
+
+        if (props.data.isImage === true) {
+          resetImgMeta(
+            props.data.size,
+            await props.data.height(),
+            await props.data.width(),
+            await props.data.ogHeight(),
+            await props.data.ogWidth(),
+          );
+        }
+        break;
+
+      case 'endprocessingimage':
+        processing.value = props.data.processing;
+        break;
+    }
   }
 };
 
@@ -223,7 +233,7 @@ const handleFileChanges = async (type, data) => {
 onBeforeMount(() => {
   if (ePre.value === null) {
     ePre.value = getEpre(componentName, props.id);
-    if (props.data.isImg()) {
+    if (props.data.isImage) {
       processing.value = props.data.processing;
       setImgMeta();
     }
@@ -242,6 +252,7 @@ li {
   list-style: none;
   padding: 0.5rem;
   margin: 0;
+  max-width: 32rem;
 }
 li + li {
   border-top: 0.05rem solid #ccc;
@@ -332,7 +343,17 @@ button > span {
 }
 .move {
   line-height: 0.85rem;
-
+}
+.f-name {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  column-gap: 1rem;
+}
+.f-name > span + span {
+  font-weight: normal;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
 }
 .move-step { background-color: #060; }
 .move-limit { background-color: #00c; }

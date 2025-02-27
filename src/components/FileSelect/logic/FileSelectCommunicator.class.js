@@ -1,17 +1,17 @@
-
 export class FileSelectCommunicator {
   _watchers = {};
+
   _log = [];
 
-  constructor (dispatcher) {
+  constructor(dispatcher) {
     this.addWatcher(dispatcher, 'root');
   }
 
-  _exists (id) {
+  _exists(id) {
     return typeof this._watchers[id] === 'function';
   }
 
-  addWatcher (dispatcher, id, replace = false) {
+  addWatcher(dispatcher, id, replace = false) {
     if ((typeof dispatcher !== 'function') || typeof id !== 'string' || id.trim() === '') {
       throw new Error(
         'addWatcher() could not add new dispatcher because '
@@ -31,7 +31,7 @@ export class FileSelectCommunicator {
     this._watchers[id] = dispatcher;
   }
 
-  removeWatcher (id) {
+  removeWatcher(id) {
     if (this._exists(id) === true) {
       const tmp = {};
       for (const key of Object.keys(this._watchers)) {
@@ -47,33 +47,18 @@ export class FileSelectCommunicator {
     return false;
   }
 
-  dispatch (type, data, src = null) {
-    console.groupCollapsed(`Communicator.dispatch("${type}")`);
-    if (typeof src === 'string') {
-      console.log('SOURCE:', src);
-    }
-    console.log('type:', type);
-    console.log('data:', data);
-    console.groupEnd();
+  dispatch(type, data, src = null) { // eslint-disable-line no-unused-vars
     for (const key of Object.keys(this._watchers)) {
       this._watchers[key](type, data);
     }
   }
 
-  getLogs () {
+  getLogs() {
     return this._log;
   }
 
-  clearLogs () {
+  clearLogs() {
     this._log = [];
-  }
-}
-
-export class FileSelectLoggingCommunicator extends FileSelectCommunicator {
-  dispatch (type, data) {
-    super.dispatch(type, data);
-
-    this._log.push({ type, data });
   }
 }
 

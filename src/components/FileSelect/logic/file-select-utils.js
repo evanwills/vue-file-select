@@ -1,7 +1,7 @@
 import { isObj } from '../../../utils/data-utils';
 import mimeTypes from './mimeTypes';
 
-export const dummyDispatch = (_eventName, _data) => {};
+export const dummyDispatch = (_eventName, _data) => {}; // eslint-disable-line no-unused-vars
 
 export const cloneFileDataItem = (file) => ({ ...file });
 
@@ -10,7 +10,7 @@ export const fileIsOK = (fileData) => (fileData.ok === true);
 export const fileIsGood = (good) => (fileData) => (fileData.ok === good);
 
 export const isNum = (input, min = null, max = null) => {
-  if (typeof input !== 'number' || isNaN(input) || !isFinite(input)) {
+  if (typeof input !== 'number' || Number.isNaN(input) || !Number.isFinite(input)) {
     return false;
   }
 
@@ -23,7 +23,7 @@ export const isNum = (input, min = null, max = null) => {
   }
 
   return true;
-}
+};
 
 /**
  *
@@ -31,27 +31,6 @@ export const isNum = (input, min = null, max = null) => {
  * @returns {string}
  */
 export const getFileExtension = (file) => file.name.replace(/^.*?\.(?=[a-z\d]+$)/i, '');
-
-export const overrideConfig = (defaultConfig, config) => {
-  const output = { ...defaultConfig };
-
-  if (isObj(config) === true) {
-    for (const key of Object.keys(output)) {
-      if (typeof config[key] !== 'undefined') {
-        const func = getRightConfigValidateFunc(key);
-
-        try {
-          output[key] = func(config[key]);
-        } catch (e) {
-          throw Error(e.message);
-          // throw Error(rewriteConfigError(e.message));
-        }
-      }
-    }
-  }
-
-  return output;
-};
 
 const makeExt = (str) => str.replace(/[^a-z0-9]+/, '').substring(0, 4);
 
@@ -80,7 +59,7 @@ const prepTypeArray = (types) => {
   throw new Error(
     'prepTypeArray() could not determin how to prepare',
   );
-}
+};
 
 const getMimes = () => {
   const allowedMime = {};
@@ -90,13 +69,13 @@ const getMimes = () => {
   }
 
   return allowedMime;
-}
+};
 
-const stringTypesToArray = (types) => {
+export const stringTypesToArray = (types) => {
   const typeList = types.replace(/[\t\n\r\s :;|,]+/g, ' ').toLowerCase().trim().split(' ');
 
   return typeList.map((_type) => _type.trim());
-}
+};
 
 /**
  * Get list of allowed file types separated list of file extensions
@@ -145,14 +124,13 @@ export const getAllowedTypes = (types) => {
     throw new Error(
       `Bad file mime types specified: "${bad.join('", "')}"`,
     );
-
   }
 
   return output;
 };
 
 export const resetPos = (file, index) => {
-  file.position = index;
+  file.position = index; // eslint-disable-line no-param-reassign
   return file;
 };
 
@@ -288,54 +266,52 @@ export const getUniqueFileName = (fileName, id = null) => {
   return `${bits[0]}_${_id}.${bits[1]}`;
 };
 
-export const getEventTypes = () => {
-  return {
-    'allcomplete': {
-      dataType: 'boolean',
-      description: 'Emitted when work on a single file is '
-        + 'complete. Data will only be `TRUE` if there are no '
-        + 'more files yet to complete processing.',
-    },
-    'complete': {
-      dataType: 'AllCompleteEventData',
-      description: 'Emitted when work on a single file is '
-        + 'complete.',
-    },
-    'toomany': {
-      dataType: 'ToomanyEventData',
-      description: 'Emitted when work on a single file is '
-        + 'complete but the total number of files selected is '
-        + 'greater than allowed',
-    },
-    'toobig': {
-      dataType: 'ToobigEventData',
-      description: 'Emitted when work on a single file is '
-        + 'complete but combined size of all the files is larger '
-        + 'than allowed',
-    },
-    'oversize': {
-      dataType: 'OversizeEventData',
-      description: 'Emitted when work on a single file is '
-        + 'complete but that file is larger than allowed for a '
-        + 'single file',
-    },
-    'invalid': {
-      dataType: 'InvalidEventData',
-      description: 'Emitted when work on a single file is '
-        + 'complete but the type of that file is not in the '
-        + 'allowed list.',
-    },
-    'processing': {
-      dataType: 'string',
-      description: 'Emitted when work starts on file named in '
-        + 'the data.',
-    },
-    'processCount': {
-      dataType: 'number',
-      description: 'Emitted when work starts on a batch of files',
-    },
-  }
-};
+export const getEventTypes = () => ({
+  allcomplete: {
+    dataType: 'boolean',
+    description: 'Emitted when work on a single file is '
+      + 'complete. Data will only be `TRUE` if there are no '
+      + 'more files yet to complete processing.',
+  },
+  complete: {
+    dataType: 'AllCompleteEventData',
+    description: 'Emitted when work on a single file is '
+      + 'complete.',
+  },
+  toomany: {
+    dataType: 'ToomanyEventData',
+    description: 'Emitted when work on a single file is '
+      + 'complete but the total number of files selected is '
+      + 'greater than allowed',
+  },
+  toobig: {
+    dataType: 'ToobigEventData',
+    description: 'Emitted when work on a single file is '
+      + 'complete but combined size of all the files is larger '
+      + 'than allowed',
+  },
+  oversize: {
+    dataType: 'OversizeEventData',
+    description: 'Emitted when work on a single file is '
+      + 'complete but that file is larger than allowed for a '
+      + 'single file',
+  },
+  invalid: {
+    dataType: 'InvalidEventData',
+    description: 'Emitted when work on a single file is '
+      + 'complete but the type of that file is not in the '
+      + 'allowed list.',
+  },
+  processing: {
+    dataType: 'string',
+    description: 'Emitted when work starts on file named in '
+      + 'the data.',
+  },
+  processCount: {
+    dataType: 'number',
+    description: 'Emitted when work starts on a batch of files',
+  },
+});
 
 export const getValidJpegCompression = (value) => {
   if (isNum(value, 0, 1) === false) {
@@ -354,16 +330,20 @@ export const getValidMaxSingleSize = (max) => {
   if (t === 'number') {
     if (max === -1) {
       return (1024 * 1024 * 1024 * 1024);
-    } else if (max > 256) {
-      return max;
-    } else {
-      throw new Error(
-        'getValidMaxSingleSize() expects only argument '
-        + '`max` to be a number that is -1 (equivalent to infinite)'
-        + ' or greater than 256.',
-      );
     }
-  } else if (t !== 'string')  {
+
+    if (max > 256) {
+      return max;
+    }
+
+    throw new Error(
+      'getValidMaxSingleSize() expects only argument '
+      + '`max` to be a number that is -1 (equivalent to infinite)'
+      + ' or greater than 256.',
+    );
+  }
+
+  if (t !== 'string') {
     throw new Error(
       'getValidMaxSingleSize() expects only argument '
       + `\`max\` to be a string. ${t} given`,
@@ -390,7 +370,7 @@ export const getValidMaxSingleSize = (max) => {
 export const getValidMaxTotalSize = (max) => {
   const t = typeof max;
 
-  if (t !== 'string')  {
+  if (t !== 'string') {
     throw new Error(
       'getValidMaxTotalSize() expects only argument '
       + `\`max\` to be a string. ${t} given`,
@@ -422,7 +402,7 @@ export const getValidMaxImgPx = (px) => {
     ? parseInt(px, 10)
     : px;
 
-    if (isNum(_px, 50, 50000) === false) {
+  if (isNum(_px, 50, 50000) === false) {
     throw new Error(
       'getValidMaxImgPx() expects only argument `px` '
       + 'to be a number that is greater than or equal to 50 and '
@@ -494,6 +474,27 @@ export const getRightConfigValidateFunc = (key) => {
   }
 };
 
+export const overrideConfig = (defaultConfig, config) => {
+  const output = { ...defaultConfig };
+
+  if (isObj(config) === true) {
+    for (const key of Object.keys(output)) {
+      if (typeof config[key] !== 'undefined') {
+        const func = getRightConfigValidateFunc(key);
+
+        try {
+          output[key] = func(config[key]);
+        } catch (e) {
+          throw Error(e.message);
+          // throw Error(rewriteConfigError(e.message));
+        }
+      }
+    }
+  }
+
+  return output;
+};
+
 export const rewriteError = (msg) => msg.replace(
   'getValid',
   'FileSelectData.set',
@@ -501,7 +502,7 @@ export const rewriteError = (msg) => msg.replace(
 
 export const rewriteConfigError = (msg) => {
   const bits = msg.match(/^([^ ]+) (.*)$/);
-  let key = bits[1].replace(/^getValid([^\()]+)\(.*$/i, '$1');
+  let key = bits[1].replace(/^getValid([^()]+)\(.*$/i, '$1');
   key = key.substring(0, 1).toLowerCase() + key.substring(1);
 
   let tail = bits[2].trim();
@@ -518,21 +519,69 @@ export const strRev = (input) => input.split('').reverse().join('');
  *
  * @param {number} input
  */
-// export const formatNum = (number) => number.toLocalString('en-AU');
-export const formatNum = (input) => {
+export const formatNum = (input) => { // eslint-disable-line arrow-body-style
   return (typeof input === 'number')
     ? input.toLocaleString('en-AU')
     : 0;
 };
 
 export const getFileReaderOnload = (context) => (e) => {
-  console.group('getFileReaderOnload()');
-  console.log('e:', e);
-  console.log('context.id:', context.id);
-  console.log('context.name:', context.name);
-  console.log('e.target:', e.target);
-  console.log('e.target.result:', e.target.result);
   context.src = e.target.result;
   context._dispatch('imgSrcSet', context.id);
-  console.groupEnd();
-}
+};
+
+export const isFileDataObj = (input) => {
+  if (typeof input === 'undefined' || input === null
+    || typeof input.file === 'undefined' || input.file instanceof File === false
+  ) {
+    return false;
+  }
+
+  const strProps = [
+    'ext',
+    'id',
+    'mime',
+    'name',
+    'ogName',
+    'previousName',
+    'src',
+  ];
+  const boolProps = ['ok', 'processing', 'invalid', 'isImage'];
+  const numProps = ['position', 'replaceCount'];
+  const methods = [
+    'size',
+    'lastModified',
+    'tooHeavy',
+    'innerHeight',
+    'width',
+    'addWatcher',
+    'removeWatcher',
+    'process',
+  ];
+
+  for (const key of strProps) {
+    if (typeof input[key] !== 'string') {
+      return false;
+    }
+  }
+
+  for (const key of boolProps) {
+    if (typeof input[key] !== 'boolean') {
+      return false;
+    }
+  }
+
+  for (const key of numProps) {
+    if (typeof input[key] !== 'number') {
+      return false;
+    }
+  }
+
+  for (const key of methods) {
+    if (typeof input[key] !== 'function') {
+      return false;
+    }
+  }
+
+  return true;
+};

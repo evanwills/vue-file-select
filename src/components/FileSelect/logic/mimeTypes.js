@@ -66,7 +66,8 @@ export default {
     name: 'Gif',
     type: 'image',
   },
-  jpg: jpeg, jpeg,
+  jpg: jpeg,
+  jpeg,
   ico: {
     ext: 'ico',
     mime: 'image/vnd.microsoft.icon',
@@ -122,7 +123,8 @@ export default {
     name: 'Kindle',
     type: 'document',
   },
-  mid: midi, midi,
+  mid: midi,
+  midi,
   mp3: {
     ext: 'mp3',
     mime: 'audio/mpeg',
@@ -171,7 +173,8 @@ export default {
     name: 'Powerpoint',
     type: 'document',
   },
-  tif: tiff, tiff,
+  tif: tiff,
+  tiff,
   wav: {
     ext: 'wav',
     mime: 'audio/wav',
