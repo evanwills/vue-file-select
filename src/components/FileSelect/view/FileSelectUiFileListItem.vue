@@ -51,7 +51,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeMount, ref } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeMount,
+  ref,
+} from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { formatNum } from '../logic/file-select-utils';
 import LoadingSpinner from '../../LoadingSpinner.vue';

@@ -720,14 +720,14 @@ export class FileSelectFileList {
   _finaliseProcessing(fileData, inc = 0, newName = null) {
     this._processingCount -= inc;
 
-    if (typeof newName === 'string') {
-      this._renameFile(output, newName);
-    }
-
     const output = this._updateFile({
       ...fileData,
       processing: false,
     });
+
+    if (typeof newName === 'string') {
+      this._renameFile(output, newName);
+    }
 
     this._dispatch('complete', { id: output.id, name: output.name, pos: output.position });
 
@@ -890,16 +890,7 @@ export class FileSelectFileList {
    */
   badFileCount() { return this.getFileCount(false); }
 
-  /**
-   * Get an object keyed on event name and containing the data type
-   * provided with the event and a description of when the event is
-   * called and why.
-   *
-   * @returns {object}
-   */
-  eventTypes() { return FileSelectFileList.getEventTypes(); }
-
-  getAllowedTypes() { return this._config.defaultAllowed }
+  getAllowedTypes() { return this._config.defaultAllowed; }
 
   /**
    * Get a list of files (and metadata) held by this instance of
@@ -1303,7 +1294,7 @@ export class FileSelectFileList {
   }
 
   _moveFileInner(id, pos, relPos) {
-    const max = this._fileList.length - 1
+    const max = this._fileList.length - 1;
     const from = pos;
     let to = pos + relPos;
 
@@ -1401,7 +1392,7 @@ export class FileSelectFileList {
       if (this._fileList[a].isMatch(id, file.name)) {
         const _id = this._fileList[a].id;
         this._fileList[a] = FileSelectFileData.getFileData(file);
-        this._fileList[a].id = id;
+        this._fileList[a].id = _id;
 
         this._processSingleFileInner(this._fileList[a]);
         return true;
