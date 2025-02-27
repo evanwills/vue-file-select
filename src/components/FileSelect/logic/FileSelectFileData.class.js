@@ -12,7 +12,7 @@ import {
 } from './file-select-utils';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
 import ImageProcessor from './ImageProcessor.class';
-import FileSelectCommunicator from './FileSelectCommunicator.class';
+import { FileSelectCommunicatorLogging as FileSelectCommunicator} from './FileSelectCommunicatorLogging.class';
 
 export class FileSelectDataFile {
   // ----------------------------------------------------------------

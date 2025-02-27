@@ -1,8 +1,8 @@
-import { compileScript } from "vue/compiler-sfc";
-import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectCommunicator from "./FileSelectCommunicator.class";
-import FileSelectFileData from "./FileSelectFileData.class";
-import { getLocalValue } from "../../../utils/data-utils";
+import { compileScript } from 'vue/compiler-sfc';
+import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from './file-select-utils';
+import { FileSelectCommunicatorLogging as FileSelectCommunicator} from './FileSelectCommunicatorLogging.class';
+import FileSelectFileData from './FileSelectFileData.class';
+import { getLocalValue } from '../../../utils/data-utils';
 
 export class ImageProcessor {
   // ----------------------------------------------------------------

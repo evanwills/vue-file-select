@@ -13,7 +13,7 @@ import { isObj } from '../../../utils/data-utils';
 import FileSelectFileData from './FileSelectFileData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
 // import ImageProcessor from './ImageProcessor.photon.class';
-import { FileSelectLoggingCommunicator } from './FileSelectCommunicator.class';
+import { FileSelectCommunicatorLogging as FileSelectCommunicator } from './FileSelectCommunicatorLogging.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -551,7 +551,7 @@ export class FileSelectFileList {
   // START: Constructor method
 
   constructor (canvas = null, watcher = null, config = null) {
-    this._comms = new FileSelectLoggingCommunicator(watcher);
+    this._comms = new FileSelectCommunicator(watcher);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
