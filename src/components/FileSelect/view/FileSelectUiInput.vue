@@ -1,9 +1,12 @@
 <template>
-  <label class="file-select-ui__btn" :for="inputId" type="button">{{ label }}</label>
+  <label
+    class="file-select-ui__btn"
+    :for="id"
+    type="button">{{ label }}</label>
   <input
     :accept="acceptTypes"
-    class="file-select-ui__input-field"
-    :id="inputId"
+    class="sr-only"
+    :id="id"
     :multiple="allowMulti"
     ref="fileSelectUiInput"
     type="file"
@@ -18,7 +21,7 @@ import { getEpre } from '../../../utils/general-utils';
 // ------------------------------------------------------------------
 // START: Vue utils
 
-const componentName = 'FileSelectUiInput';
+const componentName = 'file-select-ui-input';
 
 //  END:  Vue utils
 // ------------------------------------------------------------------
@@ -27,7 +30,7 @@ const componentName = 'FileSelectUiInput';
 const props = defineProps({
   acceptTypes: { type: String, required: true },
   fileList: { type: FileSelectFileList, required: true },
-  inputId: { type: String, required: true },
+  id: { type: String, required: true },
   label: { type: String, required: true },
   multi: { type: Boolean, required: false, default: false },
 });
@@ -53,10 +56,17 @@ const allowMulti = ref(props.multi);
 // ------------------------------------------------------------------
 // START: Helper methods
 
+const listChange = (type, data) => {
+  if (type === 'processCount' && data === 0) {
+    fileSelectUiInput.value.value = '';
+    allowMulti.value = props.fileList.allowMultiple();
+  }
+};
+
 const setWatcher = () => {
   if (init.value === false && props.fileList !== null) {
     init.value = true;
-    props.fileList.addWatcher(listChange, `${componentName}-${props.inputId}`);
+    props.fileList.addWatcher(listChange, `${componentName}-${props.id}`);
   }
 };
 
@@ -71,13 +81,6 @@ const handleFileChange = (event) => {
     } catch (error) {
       console.error(ePre.value('handleFileChange'), error);
     }
-  }
-};
-
-const listChange = (type, data) => {
-  if (type === 'processCount' && data === 0) {
-    fileSelectUiInput.value.value = '';
-    allowMulti.value = props.fileList.allowMultiple();
   }
 };
 
@@ -98,13 +101,15 @@ onBeforeMount(() => {
 </script>
 
 <style>
-.file-select-ui__input-field {
-  display: inline-block;
-  height: 1px;
+.sr-only {
+  position: absolute;
   width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  color: transparent;
-  opacity: 0;
-  margin: -1px 0 0 -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>

@@ -166,19 +166,14 @@ const emitMoveToEnd = () => {
   emit('move', { id: props.id, relPos: 1000 });
 };
 
-const setImgMeta = async () => {
-  width.value = await props.data.width();
-  height.value = await props.data.height();
-  ogWidth.value = await props.data.ogWidth();
-  ogHeight.value = await props.data.ogHeight();
-};
-
-const resetImgMeta = async (_size, _height, _width, _ogHeight, _ogWidth) => {
-  height.value = _height;
-  size.value = _size;
-  width.value = _width;
-  ogWidth.value = _ogWidth;
-  ogHeight.value = _ogHeight;
+const setFileMeta = async () => {
+  size.value = props.data.size;
+  if (props.data.isImage === true) {
+    width.value = await props.data.width();
+    height.value = await props.data.height();
+    ogWidth.value = await props.data.ogWidth();
+    ogHeight.value = await props.data.ogHeight();
+  }
 };
 
 const handleFileChanges = async (type, data) => {
@@ -197,27 +192,13 @@ const handleFileChanges = async (type, data) => {
 
       case 'resized':
       case 'imageMetaSet':
-        resetImgMeta(
-          props.data.size,
-          await props.data.height(),
-          await props.data.width(),
-          await props.data.ogHeight(),
-          await props.data.ogWidth(),
-        );
+        setFileMeta();
         break;
 
       case 'replaced':
         _name.value = props.data.name;
 
-        if (props.data.isImage === true) {
-          resetImgMeta(
-            props.data.size,
-            await props.data.height(),
-            await props.data.width(),
-            await props.data.ogHeight(),
-            await props.data.ogWidth(),
-          );
-        }
+        setFileMeta();
         break;
 
       case 'endprocessingimage':
@@ -240,8 +221,8 @@ onBeforeMount(() => {
     ePre.value = getEpre(componentName, props.id);
     if (props.data.isImage) {
       processing.value = props.data.processing;
-      setImgMeta();
     }
+    setFileMeta();
 
     props.data.addWatcher(handleFileChanges, `listItem--${props.id}`);
   }

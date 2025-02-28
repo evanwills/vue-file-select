@@ -4,15 +4,17 @@
       v-if="selectedFiles !== null"
       :accept-types="acceptTypes"
       :file-list="selectedFiles"
-      :input-id="inputID"
+      :id="inputID"
       :label="label"
       :multi="multiple" />
-    <canvas ref="fileSelectCanvas"></canvas>
     <dialog ref="fileSelectUI" class="file-select-ui-modal">
       <FileSelectUiPreview
-        v-show="previewing === true"
-        :canvas="fileSelectCanvas"
-        :id="previewID" />
+        v-show="previewing === true && selectedFiles !== null"
+        :accept-types="acceptTypes"
+        :file-id="preveiwFileId"
+        :file-list="selectedFiles"
+        :id="previewID"
+        v-on:use="closePreview" />
       <FileSelectUiFileList
         v-show="previewing === false"
         :accept-types="acceptTypes"
@@ -23,6 +25,8 @@
         v-on:upload="handleUpload"
         v-on:cancel="handleCancel" />
       <button type="button" v-on:click="handleCancel" class="file-select-ui__btn file-select-ui-modal__btn-close">Close</button>
+
+      <canvas ref="fileSelectCanvas" class="sr-only"></canvas>
     </dialog>
   </div>
 </template>
@@ -36,12 +40,12 @@ import {
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 // import { FilSelectData } from './FileSelectData.IBR.class.js';
-import { FileSelectFileList } from '../logic/FileSelectFileList.class';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
+import { FileSelectFileList } from '../logic/FileSelectFileList.class';
 import { getAllowedTypes } from '../logic/file-select-utils';
-import FileSelectUiPreview from './FileSelectUiPreview.vue';
 import FileSelectUiFileList from './FileSelectUiFileList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
+import FileSelectUiPreview from './FileSelectUiPreview.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -51,18 +55,135 @@ import FileSelectUiInput from './FileSelectUiInput.vue';
 // START: Props
 
 const props = defineProps({
+  /**
+   * A space separated list of file types this component will accept
+   *
+   * @property {string} accept
+   */
   accept: { type: String, required: false, default: 'JPG PNG DOCX PDF' },
-  greyscale: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not to convert images to grey scale when
+   * resizing/reducing them
+   *
+   * > __Note:__ Only the `wasm` based image processor can convert
+   * >           from colour to grey scale so this attribute/property
+   * >           will be ignored if it the image processor can't
+   * >           support it.
+   *
+   * @property {boolean} noInvalid
+   */
+  greyScale: { type: Boolean, required: false, default: false },
+
+  /**
+   * String to be used as the root for all IDs of components/elements
+   * rendered within this component
+   *
+   * @property {string} id
+   */
   id: { type: String, required: true },
+
+  /**
+   * JPEG compression level to use when saving modified files
+   *
+   * @property {number} jpgCompression A number between 0 & 1
+   */
   jpgCompression: { type: Number, required: false, default: 0.85 },
+
+  /**
+   * Text to show in the upload button visible in the root of this
+   * component
+   *
+   * @property {string} label
+   */
   label: { type: String, required: false, default: 'Upload' },
+
+  /**
+   * Maximum number of files this component will collect
+   *
+   * @property {number} maxFileCount
+   */
   maxFileCount: { type: Number, required: false, default: 15 },
+
+  /**
+   * Maximum number of pixels (either height or width) the user can
+   * upload
+   *
+   * > __Note:__ If an image exceeds this limit, (and the browser
+   * >           can do it), the image will be automatically resized
+   * >           before it is uploaded.
+   *
+   * @property {string|number} maxTotalSize
+   */
   maxImgPx: { type: String, required: false, default: '1500' },
+
+  /**
+   * Human readable representation of maximum file size for a single
+   * file
+   *
+   * @property {string} maxTotalSize
+   */
   maxSingleSize: { type: String, required: false, default: '15MB' },
+
+  /**
+   * Human readable representation of maximum total upload size this
+   * component can collect
+   *
+   * @property {string} maxTotalSize
+   */
   maxTotalSize: { type: String, required: false, default: '45MB' },
+
+  /**
+   * Whether or not files are prevented from being added to the list
+   * of files because they are the wrong type or too large.
+   *
+   * @property {boolean} noInvalid
+   */
   noInvalid: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not the user can move files with the list of files
+   * they have selected
+   *
+   * @property {boolean} noMove
+   */
   noMove: { type: Boolean, required: false, default: false },
+
+  /**
+   * Custom message to show if the browser can't/won't resize user
+   * selected images.
+   *
+   * @property {string} noResizeWarning
+   */
   noResizeWarning: { type: String, required: false, default: '' },
+
+  /**
+   * Whether or not to preview an image when only one image is
+   * selected
+   *
+   * > __Note:__ If you have both `preview` and `previewAll` present
+   * >           `previewAll` will override `preview`.
+   *
+   * @property {boolean} preview
+   */
+  preview: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not to preview all images multiple images are
+   * selected
+   *
+   * > __Note:__ If you have both `previewAll` and `preview` present
+   * >           `previewAll` will override `preview`.
+   *
+   * @property {boolean} previewAll
+   */
+  previewAll: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not to use a WASM image resizer
+   *
+   * @property {boolean} wasm
+   */
   wasm: { type: Boolean, required: false, default: false },
 });
 
@@ -70,7 +191,6 @@ const props = defineProps({
 // ------------------------------------------------------------------
 // START: Local state
 
-let ePre = null;
 const previewing = ref(false);
 const selectedFiles = ref(null);
 const acceptTypes = ref('image/jpeg, image/png application/msdoc');
@@ -83,6 +203,8 @@ const noResize = ref(false);
 // START: Computed helpers
 
 const getID = (tag) => `${tag}--${props.id}`;
+const ePre = ref(null);
+const preveiwFileId = ref('');
 
 //  END:  Computed helpers
 // ------------------------------------------------------------------
@@ -98,10 +220,20 @@ const multiple = computed(() => props.maxFileCount > 1);
 // START: Helper methods
 
 const handleResizerEvents = (type, data) => {
-  if (type === 'added') {
-    doShowModal(fileSelectUI.value);
-  } else if (type === 'noResize') {
-    noResize.value = (data !== false);
+  switch (type) { // eslint-disable-line default-case
+    case 'added':
+      previewing.value = (previewing.value === true && data.isImage === true);
+      preveiwFileId.value = data.id;
+      doShowModal(fileSelectUI.value);
+      break;
+
+    case 'noResize':
+      noResize.value = (data !== false);
+      break;
+
+    case 'toBeAdded':
+      previewing.value = (data === 1);
+      break;
   }
 };
 
@@ -111,7 +243,7 @@ const initFiles = () => {
     handleResizerEvents,
     {
       defaultAllowed: acceptTypes.value,
-      greyscale: props.greyScale,
+      greyScale: props.greyScale,
       jpgCompression: props.jpgCompression,
       maxFileCount: props.maxFileCount,
       maxImgPx: props.maxImgPx,
@@ -145,6 +277,8 @@ const handleCancel = () => {
   selectedFiles.value.deleteAll();
 };
 
+const closePreview = () => { previewing.value = false; };
+
 //  END:  Event handler methods
 // ------------------------------------------------------------------
 // START: Watcher methods
@@ -154,8 +288,8 @@ const handleCancel = () => {
 // START: Lifecycle methods
 
 onBeforeMount(() => {
-  if (ePre === null) {
-    ePre = getEpre('FileSelectUI', props.id);
+  if (ePre.value === null) {
+    ePre.value = getEpre('FileSelectUI', props.id);
     acceptTypes.value = getAllowedTypes(props.accept);
     acceptTypes.value = acceptTypes.value.map((type) => type.mime).join(', ');
   }
@@ -213,4 +347,17 @@ onMounted(() => {
 .file-select-ui__btn-list label {
   flex-grow: 1;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 </style>

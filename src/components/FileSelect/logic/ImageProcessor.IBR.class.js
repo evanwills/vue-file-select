@@ -101,6 +101,7 @@ export class IBRimageProcessor extends ImageProcessor {
   async _processInner(fileData, _resizeRatio) { // eslint-disable-line no-unused-vars
     this._dispatch('startprocessing', fileData);
     fileData.processing = true; // eslint-disable-line no-param-reassign
+
     return IBRimageProcessor._reducer.toBlob(
       fileData.file,
       { max: this._config.maxImgPx },

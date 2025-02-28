@@ -14,11 +14,7 @@ export const isNum = (input, min = null, max = null) => {
     return false;
   }
 
-  if (isNum(min) && input < min) {
-    return false;
-  }
-
-  if (isNum(max) && input > max) {
+  if ((isNum(min) && input < min) || (isNum(max) && input > max)) {
     return false;
   }
 
@@ -36,7 +32,7 @@ const makeExt = (str) => str.replace(/[^a-z0-9]+/, '').substring(0, 4);
 
 const prepTypeArray = (types) => {
   if (typeof types === 'string') {
-    const typeList = types.replace(/[\t\n\r\s :;|,]+/g, ' ').toLowerCase().trim().split(' ');
+    const typeList = types.replace(/[\t\n\r :;|,]+/g, ' ').toLowerCase().trim().split(' ');
 
     return typeList.map((_type) => _type.trim());
   }
@@ -546,17 +542,29 @@ export const isFileDataObj = (input) => {
     'previousName',
     'src',
   ];
-  const boolProps = ['ok', 'processing', 'invalid', 'isImage'];
-  const numProps = ['position', 'replaceCount'];
-  const methods = [
-    'size',
-    'lastModified',
+  const boolProps = [
+    'ok',
+    'processing',
+    'invalid',
+    'isImage',
     'tooHeavy',
-    'innerHeight',
-    'width',
+    'tooLarge',
+  ];
+  const numProps = [
+    'ogSize',
+    'lastModified',
+    'position',
+    'replaceCount',
+    'size',
+  ];
+  const methods = [
     'addWatcher',
-    'removeWatcher',
+    'height',
+    'ogHeight',
+    'ogWidth',
     'process',
+    'removeWatcher',
+    'width',
   ];
 
   for (const key of strProps) {

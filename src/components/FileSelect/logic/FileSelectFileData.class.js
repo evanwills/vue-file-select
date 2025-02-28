@@ -247,7 +247,9 @@ export class FileSelectDataFile {
   }
 
   get lastModified() {
-    return this._file.lastModifiedDate;
+    return (typeof this._file.lastModifiedDate !== 'undefined')
+      ? this._file.lastModifiedDate
+      : -1;
   }
 
   get mime() {
@@ -358,11 +360,11 @@ export class FileSelectDataFile {
     return this._tooLarge;
   }
 
-  //  END:  Private methods
+  //  END:  Public getter & setter methods
   // ----------------------------------------------------------------
   // START: Public utility methods
 
-  isMatch(id, name) {
+  isMatch(id, name = '') {
     return (this._id === id || this._name === name);
   }
 
@@ -436,7 +438,7 @@ export class FileSelectDataFile {
           this._ok = false;
         }
 
-        this._dispatch('imageMetaSet', this);
+        this._dispatch('imageMetaSet', this._id);
       });
     }
 
@@ -503,6 +505,7 @@ export class FileSelectDataFile {
 
       if (this._ogSize !== this._file.size) {
         this._getImgSrc(this._file);
+        this.setImageMetadata(true);
       }
 
       this._processing = false;

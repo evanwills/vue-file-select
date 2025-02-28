@@ -16,12 +16,12 @@
     </ul>
     <p class="file-select-ui__btn-list">
       <FileSelectUiInput
-      v-if="fileList !== null"
-      :accept-types="acceptTypes"
-      :file-list="fileList"
-      :input-id="inputID"
-      :label="inputLabel"
-      :multi="multi" />
+        v-if="fileList !== null"
+        :accept-types="acceptTypes"
+        :file-list="fileList"
+        :input-id="inputID"
+        :label="inputLabel"
+        :multi="multi" />
       <button class="file-select-ui__btn" type="button" v-on:click="handleUpload">Upload</button>
       <button class="file-select-ui__btn" type="button" v-on:click="handleCancel">Cancel</button>
     </p>

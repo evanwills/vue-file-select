@@ -28,3 +28,4 @@ tmp/
 /blob-report/
 /playwright/.cache/
 *.bak
+compareWithSitecore.sh

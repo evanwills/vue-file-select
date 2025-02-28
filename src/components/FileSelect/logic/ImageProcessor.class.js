@@ -204,7 +204,7 @@ export class ImageProcessor {
 
       if (this._noResize === false
         && (fileData.tooLarge === true
-        || this._config.getGreyscale === true
+        || this._config.greyScale === true
         || (resizeRatio < 1 && resizeRatio > 0))
       ) {
         this._dispatch('startimgpropcessing:', fileData);

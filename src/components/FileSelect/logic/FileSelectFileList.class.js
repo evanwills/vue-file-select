@@ -584,7 +584,11 @@ export class FileSelectFileList {
   _handleImageMeta(context) { // eslint-disable-line class-methods-use-this
     return (type, data) => {
       if (type === 'imageMetaSet') {
-        context._processImage(data);
+        const tmp = this.getFile(data);
+
+        if (tmp !== null) {
+          context._processImage(tmp);
+        }
       }
     };
   }
@@ -609,7 +613,7 @@ export class FileSelectFileList {
       return false;
     }
 
-    if (this._updateFile(fileData) === true) {
+    if (typeof this._fileList.find((item) => item.isMatch(fileData.id, fileData.name)) !== 'undefined') {
       return null;
     }
 
@@ -674,40 +678,6 @@ export class FileSelectFileList {
     this._comms.dispatch(type, data, 'FileSelectFileList');
   }
 
-  _updateFile(fileData) {
-    for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].isMatch(fileData.id, fileData.name)) {
-        // This is a file we've already seen.
-        // We'll just update it's postion and replace the previous
-        // version.
-        fileData.position = a; // eslint-disable-line no-param-reassign
-        this._fileList[a] = fileData;
-        this._dispatch('updated', fileData.id);
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  _renameFile({ id, name }, newName) {
-    for (const fileData of this._fileList) {
-      if (fileData.isMatch(id, name)) {
-        fileData.name = newName;
-        this._dispatch(
-          'renamed',
-          {
-            id: fileData.id,
-            oldName: fileData.previousName,
-            newName,
-            position: fileData.position,
-          },
-        );
-        break;
-      }
-    }
-  }
-
   /**
    *
    * @param {FileDataItem} fileData File data object currently being
@@ -720,18 +690,17 @@ export class FileSelectFileList {
   _finaliseProcessing(fileData, inc = 0, newName = null) {
     this._processingCount -= inc;
 
-    const output = this._updateFile({
-      ...fileData,
-      processing: false,
-    });
-
     if (typeof newName === 'string') {
-      this._renameFile(output, newName);
+      fileData.name = newName; // eslint-disable-line no-param-reassign
+      this._dispatch('renamed', fileData.id);
     }
 
-    this._dispatch('complete', { id: output.id, name: output.name, pos: output.position });
+    fileData.processing = false; // eslint-disable-line no-param-reassign
 
-    this._checkTooMany(output.name);
+    this._dispatch('complete', fileData.id);
+    this._dispatch('updated', fileData.id);
+
+    this._checkTooMany(fileData.name);
 
     this._calculateTotal();
 
@@ -791,8 +760,6 @@ export class FileSelectFileList {
         },
       );
     }
-
-    // this._processImage(fileData);
   }
 
   /**
@@ -858,7 +825,7 @@ export class FileSelectFileList {
   _setConfig(config) {
     this._config = {
       defaultAllowed: FileSelectFileData.getDefaultAllowed(),
-      greyscale: ImageProcessor.getGreyscale(),
+      greyScale: ImageProcessor.getGreyscale(),
       jpegCompression: ImageProcessor.getJpegCompression(),
       maxFileCount: FileSelectFileList.#maxFileCount,
       maxImgPx: ImageProcessor.getMaxImgPx(),
@@ -927,6 +894,24 @@ export class FileSelectFileList {
    * @returns {Dispatcher}
    */
   getComms() { return this._comms; }
+
+  /**
+   * Gett a file mattched by the supplied ID
+   *
+   * @param {string} id ID of the file to be returned
+   *
+   * @returns {FileSelectFileData|null} The file object if a file was
+   *
+   *
+   * matched by its ID. NULL otherwise
+   */
+  getFile(id, name = '') {
+    const output = this._fileList.find((item) => item.isMatch(id, name));
+
+    return (typeof output !== 'undefined')
+      ? output
+      : null;
+  }
 
   /**
    * Get the number of files in this instance
@@ -1210,9 +1195,9 @@ export class FileSelectFileList {
   deleteFile(id) {
     const l = this._fileList.length;
 
-    const outGoing = this._fileList.find((item) => item.id === id);
+    const outGoing = this.getFile(id);
 
-    if (typeof outGoing !== 'undefined') {
+    if (outGoing !== null) {
       this._fileList = this._fileList.filter((fileData) => (fileData.id !== id)).map(resetPos);
 
       this._calculateTotal();
@@ -1370,7 +1355,7 @@ export class FileSelectFileList {
     const c = this._fileList.length;
     const newFiles = [];
 
-    this._dispatch('processCount', files.length);
+    this._dispatch('toBeAdded', files.length);
 
     for (const fileData of files) {
       newFiles.push(this._processSingleFile(fileData));
@@ -1388,15 +1373,14 @@ export class FileSelectFileList {
   }
 
   replaceFile(id, file) {
-    for (let a = 0; a < this._fileList.length; a += 1) {
-      if (this._fileList[a].isMatch(id, file.name)) {
-        const _id = this._fileList[a].id;
-        this._fileList[a] = FileSelectFileData.getFileData(file);
-        this._fileList[a].id = _id;
+    const tmp = this.getFile(id);
 
-        this._processSingleFileInner(this._fileList[a]);
-        return true;
-      }
+    if (tmp !== null) {
+      tmp.file = file;
+
+      this._processSingleFileInner(tmp);
+
+      return true;
     }
 
     throw new Error(
