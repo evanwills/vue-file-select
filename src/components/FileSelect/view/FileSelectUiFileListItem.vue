@@ -24,25 +24,54 @@
     </div>
 
     <p class="btn-list">
-      <button class="delete" :title="`Delete ${name}`" type="button" v-on:click="emitDelete">
+      <button
+        v-if="!noDelete"
+        class="delete"
+        :disabled="!isFocused"
+        :tabindex="tabIndex"
+        :title="`Delete ${name}`"
+        type="button"
+        v-on:click="emitDelete">
         <span>Delete {{ name }}</span>
       </button>
       <span v-if="noMove === false">
-        <button v-if="canMoveUp" class="move move-step move-up" type="button" v-on:click="emitMoveUp">
+        <button
+          v-if="canMoveUp"
+          class="move move-step move-up"
+          :disabled="!isFocused"
+          :tabindex="tabIndex"
+          type="button"
+          v-on:click="emitMoveUp">
           <span>Move {{ name }} up one place</span>
         </button>
 
-        <button v-if="canMoveDown" class="move move-step move-far move-down" type="button" v-on:click="emitMoveDown">
+        <button
+        v-if="canMoveDown"
+        class="move move-step move-far move-down"
+          :disabled="!isFocused"
+          :tabindex="tabIndex"
+          type="button"
+          v-on:click="emitMoveDown">
           <span>Move {{ name }} down one place</span>
         </button>
       </span>
 
       <span v-if="noMove === false">
-        <button v-if="canMoveUp" class="move move-limit move-start" type="button" v-on:click="emitMoveToStart">
+        <button v-if="canMoveUp"
+          class="move move-limit move-start"
+          :disabled="!isFocused"
+          :tabindex="tabIndex"
+          type="button"
+          v-on:click="emitMoveToStart">
           <span>Move {{ name }} to start</span>
         </button>
 
-        <button v-if="canMoveDown" class="move move-limit move-far move-end" type="button" v-on:click="emitMoveToEnd">
+        <button
+          v-if="canMoveDown"
+          class="move move-limit move-far move-end"
+          :disabled="!isFocused"
+          :tabindex="tabIndex"
+          type="button" v-on:click="emitMoveToEnd">
           <span>Move {{ name }} to end</span>
         </button>
       </span>
@@ -78,8 +107,10 @@ const props = defineProps({
    */
   data: { type: Object, required: true },
   id: { type: String, required: true },
+  isFocused: { type: Boolean, required: false, default: false },
   name: { type: String, required: true },
   noMove: { type: Boolean, required: false, default: false },
+  noDelete: { type: Boolean, required: false, default: false },
   ok: { type: Boolean, required: true },
   pos: { type: Number, required: true },
   total: { type: Number, required: true },
@@ -140,6 +171,11 @@ const canMoveUp = computed(() => (props.pos > 0));
 const canMoveDown = computed(() => (props.pos < props.total));
 
 const fileName = computed(() => props.name.replace(/(?=\.)/g, '<wbr />'));
+const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
+  return (props.isFocused)
+    ? undefined
+    : -1;
+});
 
 //  END:  Computed state
 // ------------------------------------------------------------------
@@ -277,8 +313,8 @@ p:last-child {
 }
 .img {
   font-size: 10rem;
-  width: 10rem;
-  max-height: 10rem;
+  width: 12rem;
+  height: 12rem;
   object-fit: contain;
 }
 .data {

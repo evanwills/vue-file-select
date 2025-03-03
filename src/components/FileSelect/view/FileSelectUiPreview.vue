@@ -1,19 +1,20 @@
 <template>
   <LoadingSpinner v-if="file === null" class="img" />
-  <section v-else>
-    <header>Preview</header>
+  <section v-else class="flex flex-col gap-y-6">
+    <header><h2 class="text-heading-md">Preview</h2></header>
     <LoadingSpinner v-if="isProcessing" class="img" />
-    <img v-else :key="src" :src="src" alt="" />
+    <div v-else class="flex flex-col gap-y-4">
+      <img :key="src" :src="src" alt="" />
+
+      <p class="text-bold-md text-center">{{ fileName }}</p>
+    </div>
     <slot><!-- canvas goes here --></slot>
-    <footer>
-      <p>{{ fileName }}</p>
-      <ul>
-        <li><strong>Size:</strong> {{ size }} (og: {{ ogSize }})</li>
-        <li><strong>Width:</strong> {{ width }} (og: {{ ogWidth }})</li>
-        <li><strong>Height:</strong> {{ height }} (og: {{ ogHeight }})</li>
-      </ul>
-      <p>
-        <button type="button" v-on:click="handleUse">{{ btnTxtUse }}</button>
+    <footer v-if="!isProcessing">
+      <p class="flex flex-col md:flex-row gap-4 content-center">
+        <button
+          type="button"
+          class="btn-pri btn-lg"
+          v-on:click="handleUse">{{ btnTxtUse }}</button>
         <FileSelectUiInput
           v-if="fileList !== null"
           :accept-types="acceptTypes"

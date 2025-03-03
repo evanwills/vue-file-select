@@ -783,11 +783,13 @@ export class FileSelectFileList {
         this._dispatch(
           'added',
           {
+            cannotadd: false,
+            id: fileData.id,
+            invalid: fileData.invalid,
+            isImage: fileData.isImage,
             name: fileData.name,
             ogName: fileData.ogName,
-            cannotadd: false,
             oversize: fileData.tooHeavy,
-            invalid: fileData.invalid,
           },
         );
 

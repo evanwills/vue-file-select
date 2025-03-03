@@ -15,7 +15,6 @@
 
 <script setup>
 import { onBeforeMount, ref } from 'vue';
-import { FileSelectFileList } from '../logic/FileSelectFileList.class';
 import { getEpre } from '../../../utils/general-utils';
 
 // ------------------------------------------------------------------
@@ -29,7 +28,7 @@ const componentName = 'file-select-ui-input';
 
 const props = defineProps({
   acceptTypes: { type: String, required: true },
-  fileList: { type: FileSelectFileList, required: true },
+  fileList: { type: Object, required: true },
   id: { type: String, required: true },
   label: { type: String, required: true },
   multi: { type: Boolean, required: false, default: false },

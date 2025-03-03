@@ -1,25 +1,31 @@
 <template>
   <div class="file-select-ui-file-list">
-    <ul>
+    <slot v-if="files.length === 0"></slot>
+    <SimpleCarousel
+      v-else
+      :focus-pos="focusIndex"
+      :length="files.length"
+      v-on:focusindex="carouselFocus">
       <FileSelectUiFileListItem
         v-for="file in files"
         :data="file"
         :id="file.id"
-        :name="file.name"
+        :is-focused="focusIndex === file.position"
         :key="file.id + file.position"
+        :name="file.name"
         :no-move="noMove"
         :ok="file.ok"
         :pos="file.position"
         :total="total"
         v-on:delete="deleteFile"
         v-on:move="moveFile" />
-    </ul>
+    </SimpleCarousel>
     <p class="file-select-ui__btn-list">
       <FileSelectUiInput
         v-if="fileList !== null"
         :accept-types="acceptTypes"
         :file-list="fileList"
-        :input-id="inputID"
+        :id="inputID"
         :label="inputLabel"
         :multi="multi" />
       <button class="file-select-ui__btn" type="button" v-on:click="handleUpload">Upload</button>
@@ -38,6 +44,7 @@ import {
 import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
 import { getEpre } from '../../../utils/general-utils';
 import FileSelectUiInput from './FileSelectUiInput.vue';
+import SimpleCarousel from '../../SimpleCarousel.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -65,6 +72,7 @@ const props = defineProps({
 const files = ref([]);
 const ePre = ref(null);
 const init = ref(false);
+const focusIndex = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -74,7 +82,7 @@ const init = ref(false);
 // ------------------------------------------------------------------
 // START: Computed state
 
-const total = computed(() => (props.fileList.getFileCount() - 1));
+const total = computed(() => props.fileList.getFileCount());
 const inputID = computed(() => `${props.id}--add-files`);
 
 //  END:  Computed state
@@ -91,9 +99,26 @@ const listChange = (type, data) => {
     'processCount',
     'processed',
   ];
+  console.group(ePre.value('carouselFocus'));
+  console.log('type:', type);
+  console.log('data:', data);
+  console.log('files.value.length (before):', files.value.length);
+  console.log('focusIndex.value (before):', focusIndex.value);
   if (actions.includes(type) || (type === 'processCount' && data === 0)) {
     files.value = props.fileList.getAllFilesRaw();
+    console.log('files.value.length (after):', files.value.length);
+    console.log('focusIndex.value (before):', focusIndex.value);
+
+    if (type === 'deleted') {
+      focusIndex.value -= 1;
+    } else if (type === 'added') {
+      focusIndex.value = (files.value.length - 1);
+    }
+    console.log('focusIndex.value (after):', focusIndex.value);
   }
+  console.log('event:', event);
+  console.log('focusIndex.value (before):', focusIndex.value);
+  console.groupEnd();
 };
 
 const setWatcher = () => {
@@ -121,6 +146,15 @@ const deleteFile = (event) => {
 
 const moveFile = ({ id, relPos }) => {
   props.fileList.moveFile(id, relPos);
+};
+
+const carouselFocus = (event) => {
+  console.group(ePre.value('carouselFocus'));
+  console.log('event:', event);
+  console.log('focusIndex.value (before):', focusIndex.value);
+  focusIndex.value = event;
+  console.log('focusIndex.value (after):', focusIndex.value);
+  console.groupEnd();
 };
 
 //  END:  Event handler methods

@@ -7,24 +7,33 @@
       :id="inputID"
       :label="label"
       :multi="multiple" />
-    <dialog ref="fileSelectUI" class="file-select-ui-modal">
-      <FileSelectUiPreview
-        v-show="previewing === true && selectedFiles !== null"
-        :accept-types="acceptTypes"
-        :file-id="preveiwFileId"
-        :file-list="selectedFiles"
-        :id="previewID"
-        v-on:use="closePreview" />
-      <FileSelectUiFileList
-        v-show="previewing === false"
-        :accept-types="acceptTypes"
-        :id="listID"
-        :file-list="selectedFiles"
-        :multi="multiple"
-        :no-move="noMove"
-        v-on:upload="handleUpload"
-        v-on:cancel="handleCancel" />
-      <button type="button" v-on:click="handleCancel" class="file-select-ui__btn file-select-ui-modal__btn-close">Close</button>
+    <dialog
+      class="file-select-ui-modal"
+      ref="fileSelectUI">
+      <div>
+        <FileSelectUiPreview
+          v-show="previewing === true && selectedFiles !== null"
+          :accept-types="acceptTypes"
+          :file-id="preveiwFileId"
+          :file-list="selectedFiles"
+          :id="previewID"
+          v-on:use="closePreview" />
+        <FileSelectUiFileList
+          v-show="previewing === false"
+          :accept-types="acceptTypes"
+          :id="listID"
+          :file-list="selectedFiles"
+          :multi="multiple"
+          :no-move="noMove"
+          v-on:cancel="handleCancel"
+          v-on:upload="handleUpload">
+          <slot></slot>
+        </FileSelectUiFileList>
+        <button
+          class="file-select-ui__btn file-select-ui-modal__btn-close"
+          type="button"
+          v-on:click="handleCancel">Close</button>
+      </div>
 
       <canvas ref="fileSelectCanvas" class="sr-only"></canvas>
     </dialog>
@@ -220,6 +229,12 @@ const multiple = computed(() => props.maxFileCount > 1);
 // START: Helper methods
 
 const handleResizerEvents = (type, data) => {
+  console.group(ePre.value('handleResizerEvents'));
+  console.log('type:', type);
+  console.log('data:', data);
+  console.log('previewing.value (before):', previewing.value);
+  console.log('preveiwFileId.value (before):', preveiwFileId.value);
+
   switch (type) { // eslint-disable-line default-case
     case 'added':
       previewing.value = (previewing.value === true && data.isImage === true);
@@ -235,6 +250,10 @@ const handleResizerEvents = (type, data) => {
       previewing.value = (data === 1);
       break;
   }
+
+  console.log('previewing.value (after):', previewing.value);
+  console.log('preveiwFileId.value (after):', preveiwFileId.value);
+  console.groupEnd();
 };
 
 const initFiles = () => {
@@ -308,6 +327,10 @@ onMounted(() => {
   position: relative;
   border: 0.05rem solid #ccc;
   border-radius: 0.5rem;
+}
+.file-select-ui-modal > div {
+  padding-top: 3rem;
+  max-width: 32rem;
 }
 .file-select-ui__btn {
   border: 0.05rem solid #fff;
