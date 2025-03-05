@@ -3,7 +3,7 @@
  * performing common actions that are shared across components
  */
 
-export const formatDate = (isoDate) => {
+export const formatDate = (isoDate, shortMonth = false) => {
   const tmp = (typeof isoDate === 'string')
     ? new Date(isoDate)
     : isoDate;
@@ -12,9 +12,13 @@ export const formatDate = (isoDate) => {
     throw new Error('formatDate() could not convert input into Date object');
   }
 
+  const month = (shortMonth === true)
+    ? 'short'
+    : 'long';
+
   return tmp.toLocaleDateString(
     'en-AU',
-    { day: 'numeric', month: 'long', year: 'numeric' },
+    { day: 'numeric', month, year: 'numeric' },
   );
 };
 

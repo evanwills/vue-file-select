@@ -20,6 +20,26 @@
         v-on:delete="deleteFile"
         v-on:move="moveFile" />
     </SimpleCarousel>
+
+    <div v-if="showErrors === true">
+      <AlertBlock
+        v-if="fileList.tooBig() === true"
+        :body="fileList.getMessage('tooBigTotal')"
+        type="error" />
+      <AlertBlock
+        v-if="fileList.tooMany() === true"
+        :body="fileList.getMessage('tooMany')"
+        type="error" />
+      <AlertBlock
+        v-if="badFile.includes('tooBig')"
+        :body="fileList.getMessage('tooBigFile')"
+        type="error" />
+      <AlertBlock
+        v-if="badFile.includes('invalid')"
+        :body="fileList.getMessage('invalidType')"
+        type="error" />
+    </div>
+
     <p class="file-select-ui__btn-list">
       <FileSelectUiInput
         v-if="fileList !== null"
@@ -45,6 +65,7 @@ import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
 import { getEpre } from '../../../utils/general-utils';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import SimpleCarousel from '../../SimpleCarousel.vue';
+import AlertBlock from '../../AlertBlock.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -73,6 +94,7 @@ const files = ref([]);
 const ePre = ref(null);
 const init = ref(false);
 const focusIndex = ref(0);
+const badFile = ref([]);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -82,6 +104,23 @@ const focusIndex = ref(0);
 // ------------------------------------------------------------------
 // START: Computed state
 
+// const showErrors = computed(() => (props.fileList !== null
+//   && (props.fileList.ok === false || badFile.value.length > 0)));
+const showErrors = computed(() => {
+  console.group(ePre.value('showErrors'));
+  console.log('props.fileList:', props.fileList);
+  console.log('badFile.value:', [...badFile.value]);
+
+  if (props.fileList !== null) {
+    console.log('props.fileList.ok:', props.fileList.ok);
+    console.log('props.fileList.tooBig():', props.fileList.tooBig());
+    console.log('props.fileList.tooMany():', props.fileList.tooMany());
+  }
+
+  console.groupEnd();
+  return (props.fileList !== null
+    && (props.fileList.ok === false || badFile.value.length > 0));
+});
 const total = computed(() => props.fileList.getFileCount());
 const inputID = computed(() => `${props.id}--add-files`);
 
@@ -92,31 +131,46 @@ const inputID = computed(() => `${props.id}--add-files`);
 const listChange = (type, data) => {
   const actions = [
     'added',
-    'replaced',
     'completed',
-    'moved',
     'deleted',
+    'moved',
+    'notadded',
     'processCount',
     'processed',
+    'replaced',
   ];
-  console.group(ePre.value('carouselFocus'));
-  console.log('type:', type);
+  console.group(ePre.value('listChange'));
+  console.log('badFile.value (before):', [...badFile.value]);
   console.log('data:', data);
   console.log('files.value.length (before):', files.value.length);
   console.log('focusIndex.value (before):', focusIndex.value);
   if (actions.includes(type) || (type === 'processCount' && data === 0)) {
     files.value = props.fileList.getAllFilesRaw();
-    console.log('files.value.length (after):', files.value.length);
-    console.log('focusIndex.value (before):', focusIndex.value);
 
-    if (type === 'deleted') {
-      focusIndex.value -= 1;
-    } else if (type === 'added') {
-      focusIndex.value = (files.value.length - 1);
+    switch (type) { // eslint-disable-line default-case
+      case 'deleted':
+        badFile.value = [];
+        focusIndex.value -= 1;
+        break;
+
+      case 'added':
+        badFile.value = [];
+        focusIndex.value = (files.value.length - 1);
+        break;
+
+      case 'notadded':
+        badFile.value = [];
+
+        if (data.invalid === true) {
+          badFile.value.push('invalid');
+        }
+        if (data.oversize === true) {
+          badFile.value.push('tooBig');
+        }
+        break;
     }
-    console.log('focusIndex.value (after):', focusIndex.value);
   }
-  console.log('event:', event);
+  console.log('badFile.value (after):', [...badFile.value]);
   console.log('focusIndex.value (before):', focusIndex.value);
   console.groupEnd();
 };
@@ -149,12 +203,7 @@ const moveFile = ({ id, relPos }) => {
 };
 
 const carouselFocus = (event) => {
-  console.group(ePre.value('carouselFocus'));
-  console.log('event:', event);
-  console.log('focusIndex.value (before):', focusIndex.value);
   focusIndex.value = event;
-  console.log('focusIndex.value (after):', focusIndex.value);
-  console.groupEnd();
 };
 
 //  END:  Event handler methods

@@ -140,6 +140,19 @@ const imgSrcReset = ref(0);
 // ------------------------------------------------------------------
 // START: Computed state
 
+const canMoveUp = computed(() => (props.pos > 0));
+const canMoveDown = computed(() => (props.pos < props.total));
+
+const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '').replace(/(?=\.)/g, '<wbr />'));
+
+const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
+  return (props.isFocused)
+    ? undefined
+    : -1;
+});
+
+const wrapWidth = computed(() => `width: ${100 / props.total}%;`);
+
 const s = computed(() => formatNum(size.value));
 const ogS = computed(() => formatNum(ogSize.value));
 
@@ -167,15 +180,6 @@ const ogH = computed(() => {
     : 0;
 });
 
-const canMoveUp = computed(() => (props.pos > 0));
-const canMoveDown = computed(() => (props.pos < props.total));
-
-const fileName = computed(() => props.name.replace(/(?=\.)/g, '<wbr />'));
-const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
-  return (props.isFocused)
-    ? undefined
-    : -1;
-});
 
 //  END:  Computed state
 // ------------------------------------------------------------------

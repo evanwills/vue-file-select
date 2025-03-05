@@ -1,5 +1,6 @@
 import {
   cloneFileDataItem,
+  enhanceMessage,
   fileIsGood,
   fileIsOK,
   getEventTypes,
@@ -13,7 +14,7 @@ import { isObj } from '../../../utils/data-utils';
 import FileSelectFileData from './FileSelectFileData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
 // import ImageProcessor from ./ImageProcessor.photon.class
-import { FileSelectCommunicatorLogging as FileSelectCommunicator } from './FileSelectCommunicatorLogging.class';
+import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -552,14 +553,15 @@ export class FileSelectFileList {
   // START: Constructor method
 
   constructor(canvas = null, watcher = null, config = null) {
-    this._comms = new FileSelectCommunicator(watcher);
+    this._comms = new FileSelectCommunicator(watcher, config.logging);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
     this._log = [];
 
     try {
-      this._setConfig(config);
+      const { logging, ...tmpConfig } = config;
+      this._setConfig(tmpConfig);
     } catch (e) {
       throw Error(e.message);
     }
@@ -774,7 +776,10 @@ export class FileSelectFileList {
     if (this._config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
+      console.group('FileSelectFileList._processSingleFile()');
+      console.log('this._config:', this._config);
       const fileData = new FileSelectFileData(file, this._config, this._comms);
+      console.groupEnd();
 
       if (this._config.omitInvalid === false || fileData.ok === true) {
         this._addFileToList(fileData);
@@ -834,6 +839,15 @@ export class FileSelectFileList {
       maxSingleSize: FileSelectFileData.getMaxSingleSize(),
       maxTotalSize: FileSelectFileList.#maxTotalSize,
       omitInvalid: FileSelectFileList.#omitInvalid,
+      messages: {
+        noResize: 'This browser does not support image resizing. '
+          + 'Please use a supported browser like Chrome or Firefox.',
+        tooBigFile: 'File size exceeds allowable limit.',
+        tooBigTotal: 'Total size of upload exceeds allowable limit.',
+        tooMany: 'Maximum number of files has been exceeded.',
+        invalidType: 'We detected an invalid file type. '
+        + 'Valid file types are: [[TYPE_LIST]]',
+      },
     };
 
     try {
@@ -847,6 +861,65 @@ export class FileSelectFileList {
   //  END:  private methods
   // ----------------------------------------------------------------
   // START: Public getter methods
+
+  /**
+   * Get message based on supplied type
+   *
+   * @param {string} type Type of message to return
+   *
+   * @throws {Error} If message type could not be found
+   */
+  getMessage(type, fileID = '') {
+    if (typeof type !== 'string' || type.trim() === '') {
+      throw new Error(
+        'FileSelectFileList.getMessage() expects only parameter '
+        + 'type to be a non-empty string',
+      );
+    }
+
+    if (typeof this._config.messages[type] !== 'string') {
+      throw new Error(
+        'FileSelectFileList.getMessage() expects only parameter '
+        + 'type to be a string matching one of the following types: '
+        ,
+      );
+    }
+
+    let output = this._config.messages[type];
+
+    let bits = {
+      FILE_COUNT: this._fileList.length,
+      MAX_COUNT: this._config.maxFileCount,
+      MAX_SINGLE: this._config.maxSingleSize,
+      MAX_TOTAL: this._config.maxTotalSize,
+      TOTAL_SIZE: this._totalSize,
+    };
+
+    switch (type) { // eslint-disable-line default-case
+      case 'tooBigFile':
+        const tmp = this.getFile(fileID); // eslint-disable-line no-case-declarations
+
+        if (tmp !== null) {
+          bits = {
+            ...bits,
+            FILE_NAME: tmp.name,
+            FILE_SIZE: tmp.size,
+          };
+        }
+        output = enhanceMessage(output, bits, true);
+        break;
+
+      case 'tooMany':
+        output = enhanceMessage(output, bits);
+        break;
+
+      case 'tooBigTotal':
+        output = enhanceMessage(output, bits, true);
+        break;
+    }
+
+    return output;
+  }
 
   imagesAllowed() {
     return typeof this._config.defaultAllowed.find((item) => (item.type === 'image')) !== 'undefined';

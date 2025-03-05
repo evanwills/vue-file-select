@@ -181,7 +181,7 @@ export class FileSelectDataFile {
     // Preset config with default values
 
     this._config = {
-      defaultAllowed: FileSelectDataFile._defaultAllowed,
+      allowedTypes: FileSelectDataFile._defaultAllowed,
       maxSingleSize: FileSelectDataFile._maxSingleSize,
       maxImgPx: 1500,
     };
@@ -194,7 +194,7 @@ export class FileSelectDataFile {
   }
 
   _setOK() {
-    if (isValidFileType(this._file, this._config.defaultAllowed) === false) {
+    if (isValidFileType(this._file, this._config.allowedTypes) === false) {
       this._invalid = true;
       this._ok = false;
     } else if (this.tooHeavy === true) {
@@ -205,6 +205,10 @@ export class FileSelectDataFile {
   //  END:  Private methods
   // ----------------------------------------------------------------
   // START: Public getter & setter methods
+
+  get allowedTypes() {
+    return this._config.allowedTypes;
+  }
 
   get ext() {
     return this._ext;

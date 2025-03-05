@@ -150,6 +150,32 @@ export const isNum = (input) => (typeof input === 'number'
   && Number.isNaN(input) === false && Number.isFinite(input) === true);
 
 /**
+ * Try to force a value to be a number
+ *
+ * @param {any}     input Value to be forced to a number
+ * @param {boolean} float Whether or not output should be a float
+ *
+ * @returns {number|null} Number if value could be forced to a number.
+ *                        NULL otherwise
+ */
+export const forceNum = (input, float = false) => {
+  let output = input;
+  if (typeof input === 'string') {
+    output = (float === true)
+      ? parseFloat(output)
+      : parseInt(output, 10);
+  }
+
+  if (isNum(output) === true) {
+    return (float === true)
+      ? output
+      : Math.round(input);
+  }
+
+  return null;
+};
+
+/**
  * Check whether the input is a plain JavaScript object.
  *
  * @param {unknown} input A value that may be an object

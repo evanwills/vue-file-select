@@ -1,9 +1,83 @@
 import { isObj } from '../../../utils/data-utils';
+import { strArrayToHumanStr } from '../../../utils/string-utils';
 import mimeTypes from './mimeTypes';
 
 export const dummyDispatch = (_eventName, _data) => {}; // eslint-disable-line no-unused-vars
 
 export const cloneFileDataItem = (file) => ({ ...file });
+
+/**
+ * @typedef FormatFunc
+ * @type {Function}
+ *
+ * @param {number|string}
+ * @returns {string}
+ */
+
+/**
+ * Get the file size metadata of a file (based on the supplied file
+ * sise in bytes)
+ *
+ * @param {number} bytes    File size in bytes
+ * @param {number} decimals number of decimal points to return
+ *
+ * @returns {object}
+ */
+export const formatBytes = (bytes, decimals = 2) => {
+  if (bytes === 0) {
+    return '0 Bytes';
+  }
+
+  const k = 1024;
+  const dm = (decimals < 0)
+    ? 0
+    : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  const obj = {
+    size: Math.round(parseFloat((bytes / (k ** i)))),
+    full: `${parseFloat((bytes / (k ** i))).toFixed(dm)} ${sizes[i]}`,
+    type: `${sizes[i]}`,
+  };
+
+  return obj;
+};
+
+const enhanceMessageInner = (bits, format) => {
+  const formater = (format === true)
+    ? (input) => { // eslint-disable-line arrow-body-style
+      return (typeof input === 'number')
+        ? formatBytes(input).full
+        : input;
+    }
+    : (input) => input;
+
+  return (whole, key) => { // eslint-disable-line arrow-body-style
+    return (typeof bits[key] === 'string')
+      ? formater(bits[key])
+      : '';
+  };
+};
+
+/**
+ * Replace placeholder strings in a message with supplied "bits" of
+ * data
+ *
+ * @param {string}  message Message string to enhance
+ * @param {Object.<string, string>} bits    key/value pairs where the
+ *                  key is the placeholder and the value is the
+ *                  placeholder's replacement value
+ * @param {boolean} format  Whether or not to format the value as a
+ *                  human readable representation number of bytes
+ *
+ * @returns {string}
+ */
+export const enhanceMessage = (message, bits, format = false) => message.replace(
+  /\[\[[a-z\d_-]+\]\]/ig,
+  enhanceMessageInner(bits, format),
+);
 
 export const fileIsOK = (fileData) => (fileData.ok === true);
 
@@ -125,37 +199,18 @@ export const getAllowedTypes = (types) => {
   return output;
 };
 
+const getHumanAllowedTypeList = (types) => {
+  const tmp = [];
+  for (const type of types) {
+    tmp.push(`.${type.ext}`);
+  }
+
+  return strArrayToHumanStr(tmp);
+};
+
 export const resetPos = (file, index) => {
   file.position = index; // eslint-disable-line no-param-reassign
   return file;
-};
-
-/**
- * Get the file size metadata of a file (based on the supplied file
- * sise in bytes)
- *
- * @param {number} bytes    File size in bytes
- * @param {number} decimals number of decimal points to return
- *
- * @returns {object}
- */
-export const formatBytes = (bytes, decimals = 2) => {
-  if (bytes === 0) {
-    return '0 Bytes';
-  }
-
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const obj = {
-    size: Math.round(parseFloat((bytes / (k ** i)))),
-    full: `${parseFloat((bytes / (k ** i))).toFixed(dm)} ${sizes[i]}`,
-    type: `${sizes[i]}`,
-  };
-
-  return obj;
 };
 
 /**
@@ -366,6 +421,10 @@ export const getValidMaxSingleSize = (max) => {
 export const getValidMaxTotalSize = (max) => {
   const t = typeof max;
 
+  if (t === 'number') {
+    return max;
+  }
+
   if (t !== 'string') {
     throw new Error(
       'getValidMaxTotalSize() expects only argument '
@@ -474,16 +533,37 @@ export const overrideConfig = (defaultConfig, config) => {
   const output = { ...defaultConfig };
 
   if (isObj(config) === true) {
-    for (const key of Object.keys(output)) {
-      if (typeof config[key] !== 'undefined') {
+    const { messages, ...overrides } = config;
+
+    for (const key of Object.keys(defaultConfig)) {
+      if (typeof overrides[key] !== 'undefined') {
         const func = getRightConfigValidateFunc(key);
 
         try {
-          output[key] = func(config[key]);
+          output[key] = func(overrides[key]);
         } catch (e) {
           throw Error(e.message);
           // throw Error(rewriteConfigError(e.message));
         }
+      }
+    }
+
+    if (isObj(messages) === true && isObj(output.messages) === true) {
+      for (const key of Object.keys(messages)) {
+        if (typeof output.messages[key] === 'string'
+          && typeof messages[key] === 'string'
+        ) {
+          output.messages[key] = messages[key];
+        }
+      }
+
+      const tmpl = '[[TYPE_LIST]]';
+
+      if (output.messages.invalidType.includes(tmpl)) {
+        output.messages.invalidType = output.messages.invalidType.replace(
+          tmpl,
+          getHumanAllowedTypeList(output.allowedTypes),
+        );
       }
     }
   }

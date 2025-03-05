@@ -57,7 +57,7 @@ const allowMulti = ref(props.multi);
 
 const listChange = (type, data) => {
   if (type === 'processCount' && data === 0) {
-    fileSelectUiInput.value.value = '';
+    fileSelectUiInput.value = '';
     allowMulti.value = props.fileList.allowMultiple();
   }
 };
@@ -74,7 +74,9 @@ const setWatcher = () => {
 // START: Event handler methods
 
 const handleFileChange = (event) => {
-  if (typeof event.target !== 'undefined' && typeof event.target.files !== 'undefined') {
+  if (typeof event.target !== 'undefined'
+    && typeof event.target.files !== 'undefined'
+  ) {
     try {
       props.fileList.processFiles(event.target.files);
     } catch (error) {

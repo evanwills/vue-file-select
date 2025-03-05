@@ -48,7 +48,6 @@ import {
   ref,
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
-// import { FilSelectData } from './FileSelectData.IBR.class.js';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
 import { FileSelectFileList } from '../logic/FileSelectFileList.class';
 import { getAllowedTypes } from '../logic/file-select-utils';
@@ -95,9 +94,9 @@ const props = defineProps({
   /**
    * JPEG compression level to use when saving modified files
    *
-   * @property {number} jpgCompression A number between 0 & 1
+   * @property {number} jpegCompression A number between 0 & 1
    */
-  jpgCompression: { type: Number, required: false, default: 0.85 },
+  jpegCompression: { type: Number, required: false, default: 0.85 },
 
   /**
    * Text to show in the upload button visible in the root of this
@@ -249,6 +248,11 @@ const handleResizerEvents = (type, data) => {
     case 'toBeAdded':
       previewing.value = (data === 1);
       break;
+
+    case 'notadded':
+      previewing.value = false;
+      doShowModal(fileSelectUI.value);
+      break;
   }
 
   console.log('previewing.value (after):', previewing.value);
@@ -257,20 +261,33 @@ const handleResizerEvents = (type, data) => {
 };
 
 const initFiles = () => {
+  console.group(ePre.value('initFIles'));
   selectedFiles.value = new FileSelectFileList(
     fileSelectCanvas.value,
     handleResizerEvents,
     {
       defaultAllowed: acceptTypes.value,
       greyScale: props.greyScale,
-      jpgCompression: props.jpgCompression,
+      jpegCompression: props.jpegCompression,
+      logging: true,
       maxFileCount: props.maxFileCount,
       maxImgPx: props.maxImgPx,
       maxSingleSize: props.maxSingleSize,
       maxTotalSize: props.maxTotalSize,
-      noInvalid: props.noInvalid,
+      omitInvalid: props.noInvalid,
+      messages: {
+        noResize: 'This browser does not support image resizing. '
+          + 'Please use a supported browser like Chrome or Firefox.',
+        tooBigFile: 'File size exceeds allowable limit. '
+          + 'Individual files must be less than [[FILE_SIZE]] and [[MAX_TOTAL]] total '
+          + 'for multiple files.',
+        invalidType: 'We detected an invalid file type. '
+        + 'Valid file types include, '
+        + '.docx, .doc, .pdf, .jpg, .jpeg, .png.',
+      },
     },
   );
+  console.groupEnd();
 };
 
 const retryInitFiles = (_initFiles, files, canvas) => () => {

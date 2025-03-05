@@ -300,7 +300,15 @@ export const setAllToFalse = (obj) => {
   return output;
 };
 
-export const saveAttemptedDetected = (event) => (event !== null
+/**
+ * Check whether an event was emitted by a save button
+ *
+ * @param {Event|any} event Event object
+ *
+ * @returns {boolean} TRUE if event was triggered by a disabled save button
+ */
+export const saveAttemptedDetected = (event) => (typeof event !== 'undefined'
+  && event !== null
   && typeof event.relatedTarget !== 'undefined'
   && event.relatedTarget !== null
   && event.relatedTarget.tagName === 'BUTTON'
