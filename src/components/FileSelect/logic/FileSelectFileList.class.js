@@ -831,7 +831,7 @@ export class FileSelectFileList {
 
   _setConfig(config) {
     this._config = {
-      defaultAllowed: FileSelectFileData.getDefaultAllowed(),
+      allowedTypes: FileSelectFileData.getDefaultAllowed(),
       greyScale: ImageProcessor.getGreyscale(),
       jpegCompression: ImageProcessor.getJpegCompression(),
       maxFileCount: FileSelectFileList.#maxFileCount,
@@ -846,7 +846,8 @@ export class FileSelectFileList {
         tooBigTotal: 'Total size of upload exceeds allowable limit.',
         tooMany: 'Maximum number of files has been exceeded.',
         invalidType: 'We detected an invalid file type. '
-        + 'Valid file types are: [[TYPE_LIST]]',
+          + 'Valid file types include, '
+          + '.docx, .doc, .pdf, .jpg, .jpeg, .png.',
       },
     };
 
@@ -922,7 +923,7 @@ export class FileSelectFileList {
   }
 
   imagesAllowed() {
-    return typeof this._config.defaultAllowed.find((item) => (item.type === 'image')) !== 'undefined';
+    return typeof this._config.allowedTypes.find((item) => (item.type === 'image')) !== 'undefined';
   }
 
   /**
@@ -932,7 +933,7 @@ export class FileSelectFileList {
    */
   badFileCount() { return this.getFileCount(false); }
 
-  getAllowedTypes() { return this._config.defaultAllowed; }
+  getAllowedTypes() { return this._config.allowedTypes; }
 
   /**
    * Get a list of files (and metadata) held by this instance of

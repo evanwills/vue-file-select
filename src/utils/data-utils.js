@@ -8,7 +8,7 @@
  * @author Evan Wills <evan.wills@thesmithfamily.com.au>
  */
 
-import { makePossessive } from './general-utils';
+import { makePossessive } from './general-utils.js';
 
 /**
  * Get a value, match by the supplied key from local storage or the

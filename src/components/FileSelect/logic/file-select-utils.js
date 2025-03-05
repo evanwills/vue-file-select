@@ -1,6 +1,6 @@
-import { isObj } from '../../../utils/data-utils';
-import { strArrayToHumanStr } from '../../../utils/string-utils';
-import mimeTypes from './mimeTypes';
+import { isObj } from '../../../utils/data-utils.js';
+import { strArrayToHumanStr } from '../../../utils/string-utils.js';
+import mimeTypes from './mimeTypes.js';
 
 export const dummyDispatch = (_eventName, _data) => {}; // eslint-disable-line no-unused-vars
 
@@ -501,9 +501,10 @@ export const getRightConfigValidateFunc = (key) => {
   switch (key) {
     case 'greyScale':
     case 'omitInvalid':
+    case 'logging':
       return getValidSetBoolTrue;
 
-    case 'defaultAllowed':
+    case 'allowedTypes':
       return getAllowedTypes;
 
     case 'jpegCompression':
@@ -548,13 +549,24 @@ export const overrideConfig = (defaultConfig, config) => {
       }
     }
 
+    console.log('messages:', messages);
+    console.log('defaultConfig.messages:', defaultConfig.messages);
+    console.log('output.messages:', output.messages);
+    console.log('isObj(messages):', isObj(messages));
+    console.log('isObj(defaultConfig.messages):', isObj(defaultConfig.messages));
+    console.log('isObj(output.messages):', isObj(output.messages));
+
     if (isObj(messages) === true && isObj(output.messages) === true) {
-      for (const key of Object.keys(messages)) {
+      for (const key of Object.keys(output.messages)) {
+        console.log('key:', key);
+        console.log(`output.messages.${key} (before):`, output.messages[key]);
         if (typeof output.messages[key] === 'string'
           && typeof messages[key] === 'string'
         ) {
+          console.log(`messages.messages.${key}:`, messages.messages[key]);
           output.messages[key] = messages[key];
         }
+        console.log(`output.messages.${key} (before):`, output.messages[key]);
       }
 
       const tmpl = '[[TYPE_LIST]]';

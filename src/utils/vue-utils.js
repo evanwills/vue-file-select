@@ -314,3 +314,15 @@ export const saveAttemptedDetected = (event) => (typeof event !== 'undefined'
   && event.relatedTarget.tagName === 'BUTTON'
   && event.relatedTarget.className.includes('save--disabled')
 );
+
+export const getHtag = (input, _default) => {
+  let h = input;
+  if (typeof h === 'string') {
+    h = parseInt(h, 10);
+  }
+
+  if (typeof h !== 'number' || h < 1 || h > 6) {
+    h = _default;
+  }
+  return `h${h}`;
+};
