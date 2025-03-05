@@ -561,6 +561,7 @@ export class FileSelectFileList {
 
     try {
       const { logging, ...tmpConfig } = config;
+      console.log('tmpConfig:', tmpConfig);
       this._setConfig(tmpConfig);
     } catch (e) {
       throw Error(e.message);
@@ -842,7 +843,8 @@ export class FileSelectFileList {
       messages: {
         noResize: 'This browser does not support image resizing. '
           + 'Please use a supported browser like Chrome or Firefox.',
-        tooBigFile: 'File size exceeds allowable limit.',
+        tooBigFile: 'File size ([[FILE_SIZE]]) exceeds allowable '
+          + 'limit ([[MAX_SINGLE]]).',
         tooBigTotal: 'Total size of upload exceeds allowable limit.',
         tooMany: 'Maximum number of files has been exceeded.',
         invalidType: 'We detected an invalid file type. '

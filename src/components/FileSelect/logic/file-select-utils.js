@@ -530,19 +530,53 @@ export const getRightConfigValidateFunc = (key) => {
   }
 };
 
+export const overrideMessages = (ogMessages, newMessages, allowed) => {
+  console.group('overrideConfig');
+
+  const output = { ...ogMessages };
+
+  for (const key of Object.keys(ogMessages)) {
+    console.log('key:', key);
+    console.log(`output.${key} (before):`, output[key]);
+    if (typeof output[key] === 'string'
+      && typeof newMessages[key] === 'string'
+    ) {
+      console.log(`newMessages.${key}:`, newMessages[key]);
+      output[key] = newMessages[key];
+    }
+    console.log(`output.${key} (before):`, output[key]);
+  }
+
+  const tmpl = '[[TYPE_LIST]]';
+
+  if (output.invalidType.includes(tmpl)) {
+    output.invalidType = output.invalidType.replace(
+      tmpl,
+      getHumanAllowedTypeList(allowed),
+    );
+  }
+  console.groupEnd();
+}
+
 export const overrideConfig = (defaultConfig, config) => {
+  console.group('overrideConfig');
   const output = { ...defaultConfig };
 
   if (isObj(config) === true) {
     const { messages, ...overrides } = config;
 
-    for (const key of Object.keys(defaultConfig)) {
+    for (const key of Object.keys(output)) {
       if (typeof overrides[key] !== 'undefined') {
         const func = getRightConfigValidateFunc(key);
 
         try {
           output[key] = func(overrides[key]);
         } catch (e) {
+          console.log('key:', key);
+          console.log(`output.${key}:`, output[key]);
+          console.log(`outoverridesput.${key}:`, overrides[key]);
+          console.error('e.message:', e.message);
+          console.groupEnd();
           throw Error(e.message);
           // throw Error(rewriteConfigError(e.message));
         }
@@ -557,28 +591,14 @@ export const overrideConfig = (defaultConfig, config) => {
     console.log('isObj(output.messages):', isObj(output.messages));
 
     if (isObj(messages) === true && isObj(output.messages) === true) {
-      for (const key of Object.keys(output.messages)) {
-        console.log('key:', key);
-        console.log(`output.messages.${key} (before):`, output.messages[key]);
-        if (typeof output.messages[key] === 'string'
-          && typeof messages[key] === 'string'
-        ) {
-          console.log(`messages.messages.${key}:`, messages.messages[key]);
-          output.messages[key] = messages[key];
-        }
-        console.log(`output.messages.${key} (before):`, output.messages[key]);
-      }
-
-      const tmpl = '[[TYPE_LIST]]';
-
-      if (output.messages.invalidType.includes(tmpl)) {
-        output.messages.invalidType = output.messages.invalidType.replace(
-          tmpl,
-          getHumanAllowedTypeList(output.allowedTypes),
-        );
-      }
+      output.messages = overrideMessages(
+        output.messages,
+        messages,
+        output.allowedTypes,
+      );
     }
   }
+  console.groupEnd();
 
   return output;
 };
