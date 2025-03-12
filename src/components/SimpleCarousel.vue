@@ -60,6 +60,10 @@ const init = ref(false);
 
 const round = (input) => (Math.round(input * 1000) / 1000);
 
+//  END:  Computed helpers
+// ------------------------------------------------------------------
+// START: Computed state
+
 const cssCustomProps = computed(() => {
   console.group('<simple-carousel>.cssCustomProps()');
   let scItemWidth = round(100 / props.length);
@@ -93,14 +97,7 @@ const cssCustomProps = computed(() => {
 // START: Event handler methods
 
 const move = (event) => {
-  console.group('<simple-carousel>.move()');
-  console.log('event:', event);
-  console.log('event.target:', event.target);
-  console.log('event.target.value:', event.target.value);
   const increment = parseInt(event.target.value, 10);
-  console.log('increment:', increment);
-  console.log('pos.value (before):', pos.value);
-
   const oldPos = pos.value;
 
   if (increment > 0) {
@@ -118,8 +115,6 @@ const move = (event) => {
   if (oldPos !== pos.value) {
     emit('focusindex', pos.value);
   }
-  console.log('pos.value (after):', pos.value);
-  console.groupEnd();
 };
 
 //  END:  Event handler methods
@@ -136,17 +131,11 @@ watch(
 watch(
   () => props.length,
   (newLen, oldLen) => {
-    console.group('<simple-carousel>.watch', 'focusPos');
-    console.log('newLen:', newLen);
-    console.log('oldLen:', oldLen);
-    console.log('pos.value (before):', pos.value);
     if (newLen >= pos.value) {
       pos.value = newLen - 1;
     } else if (oldLen === 0) {
       pos.value = 0;
     }
-    console.log('pos.value (after):', pos.value);
-    console.groupEnd();
   },
 );
 

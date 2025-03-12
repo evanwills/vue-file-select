@@ -6,7 +6,7 @@ import {
   overrideConfig,
   rewriteConfigError,
 } from './file-select-utils';
-import { FileSelectCommunicatorLogging as FileSelectCommunicator } from './FileSelectCommunicatorLogging.class';
+import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 import { getLocalValue } from '../../../utils/data-utils';
 
 export class ImageProcessor {

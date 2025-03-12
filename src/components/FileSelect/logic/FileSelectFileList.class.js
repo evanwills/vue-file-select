@@ -552,29 +552,30 @@ export class FileSelectFileList {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor(canvas = null, watcher = null, config = null) {
-    this._comms = new FileSelectCommunicator(watcher, config.logging);
+  constructor(canvas = null, config = null) {
+    this._comms = new FileSelectCommunicator(config.logging);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
     this._log = [];
 
     try {
-      const { logging, ...tmpConfig } = config;
-      console.log('tmpConfig:', tmpConfig);
+      const { logging, noResize, ...tmpConfig } = config;
       this._setConfig(tmpConfig);
     } catch (e) {
       throw Error(e.message);
     }
 
-    const noResize = ImageProcessor.canResize() === false;
-
-    this._canResize = (this.imagesAllowed() === true && noResize === false);
+    this._canResize = (this.imagesAllowed() === true && noResize !== true);
 
     if (this._canResize === true) {
       this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
       this._imgProcessor.forceInit();
-      this._comms.addWatcher(this._handleImageMeta(this), 'FileSelectFileList--image-resize');
+      this._comms.addWatcher(
+        'imageMetaSet',
+        this._handleImageMeta(),
+        'FileSelectFileList--image-resize',
+      );
     } else if (noResize === true) {
       this._comms.dispatch('noResize', true, 'FileSelectFileList');
     }
@@ -584,14 +585,39 @@ export class FileSelectFileList {
   // ----------------------------------------------------------------
   // START: private methods
 
-  _handleImageMeta(context) { // eslint-disable-line class-methods-use-this
-    return (type, data) => {
-      if (type === 'imageMetaSet') {
-        const tmp = this.getFile(data);
+  /**
+   * Add the ID of a bad file if it's not already in the list.
+   *
+   * @param {string} id ID of bad file added to the file list
+   *
+   * @returns {void}
+   */
+  _addBadFile(id) {
+    if (this._badFiles.includes(id) === false) {
+      this._badFiles.push(id);
+    }
+  }
 
-        if (tmp !== null) {
-          context._processImage(tmp);
-        }
+  /**
+   * Remove the ID of a bad file from the bad file ID list.
+   *
+   * @param {string} id ID of a bad file that was removed from the
+   *                    file list.
+   *
+   * @returns {void}
+   */
+  _deleteBadFile(id) {
+    this._badFiles = this._badFiles.filter((str) => str !== id);
+  }
+
+  _handleImageMeta() { // eslint-disable-line class-methods-use-this
+    const context = this;
+
+    return (data) => {
+      const tmp = context.getFile(data);
+
+      if (tmp !== null) {
+        context._processImage(tmp);
       }
     };
   }
@@ -629,6 +655,9 @@ export class FileSelectFileList {
       fileData.position = this._fileList.length; // eslint-disable-line no-param-reassign
 
       this._fileList.push(fileData);
+      if (fileData.ok === false) {
+        this._addBadFile(fileData.id);
+      }
 
       return true;
     }
@@ -777,10 +806,7 @@ export class FileSelectFileList {
     if (this._config.omitInvalid === false
       || (this.tooBig() === false && this.tooMany() === false)
     ) {
-      console.group('FileSelectFileList._processSingleFile()');
-      console.log('this._config:', this._config);
       const fileData = new FileSelectFileData(file, this._config, this._comms);
-      console.groupEnd();
 
       if (this._config.omitInvalid === false || fileData.ok === true) {
         this._addFileToList(fileData);
@@ -848,8 +874,7 @@ export class FileSelectFileList {
         tooBigTotal: 'Total size of upload exceeds allowable limit.',
         tooMany: 'Maximum number of files has been exceeded.',
         invalidType: 'We detected an invalid file type. '
-          + 'Valid file types include, '
-          + '.docx, .doc, .pdf, .jpg, .jpeg, .png.',
+        + 'Valid file types are: [[TYPE_LIST]]',
       },
     };
 
@@ -861,9 +886,50 @@ export class FileSelectFileList {
     }
   }
 
+  /**
+   * Add watcher to process image when a replacement image is added
+   * to the list.
+   *
+   * > __Note:__ When a file is replaced normal image processing
+   * >           doesn't occur adding a temporary watcher allows us
+   * >           to wait for the necessary things to happen
+   * >           before we start resizing the image.
+   *
+   * @param {FileSelectFileData} fileData file data object
+   *
+   * @returns {void}
+   */
+  _setTempImageWatcher(fileData) {
+    const comms = this._comms;
+    const processor = this._imgProcessor;
+
+    this._comms.addWatcher(
+      (type, data) => {
+        if (type === 'imageMetaSet' && data === fileData.id) {
+          fileData.process(processor);
+          comms.removeWatcher(fileData.id);
+        }
+      },
+      fileData.id,
+    );
+  }
+
   //  END:  private methods
   // ----------------------------------------------------------------
   // START: Public getter methods
+
+  async appendFilesToForm(form) {
+    const promises = [];
+    const tmp = this.getGoodFiles();
+
+    for (const file of tmp) {
+      promises.push(Promise.resolve(form.append('File', file)));
+    }
+
+    await Promise.all(promises);
+
+    return form;
+  }
 
   /**
    * Get message based on supplied type
@@ -898,17 +964,18 @@ export class FileSelectFileList {
       TOTAL_SIZE: this._totalSize,
     };
 
+    const tmp = this.getFile(fileID); // eslint-disable-line no-case-declarations
+
+    if (tmp !== null) {
+      bits = {
+        ...bits,
+        FILE_NAME: tmp.name,
+        FILE_SIZE: tmp.size,
+      };
+    }
+
     switch (type) { // eslint-disable-line default-case
       case 'tooBigFile':
-        const tmp = this.getFile(fileID); // eslint-disable-line no-case-declarations
-
-        if (tmp !== null) {
-          bits = {
-            ...bits,
-            FILE_NAME: tmp.name,
-            FILE_SIZE: tmp.size,
-          };
-        }
         output = enhanceMessage(output, bits, true);
         break;
 
@@ -1198,11 +1265,12 @@ export class FileSelectFileList {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addWatcher(watcher, id, replace = false) {
+  addWatcher(event, watcher, id, replace = false) {
     try {
-      this._comms.addWatcher(watcher, id, replace);
+      this._comms.addWatcher(event, watcher, id, replace);
     } catch (error) {
-      // throw Error(error.message);
+      console.error('error.message:', error.message);
+      // throw Error error message
     }
   }
 
@@ -1214,8 +1282,8 @@ export class FileSelectFileList {
    * @returns {boolean} TRUE if the dispatcher was removed.
    *                    FALSE otherwise
    */
-  removeWatcher(id) {
-    return this._comms.removeWatcher(id);
+  removeWatcher(event, id) {
+    return this._comms.removeWatcher(event, id);
   }
 
   /**
@@ -1277,6 +1345,7 @@ export class FileSelectFileList {
 
     if (outGoing !== null) {
       this._fileList = this._fileList.filter((fileData) => (fileData.id !== id)).map(resetPos);
+      this._deleteBadFile(id);
 
       this._calculateTotal();
       this._checkTooMany(outGoing.name);
@@ -1457,6 +1526,11 @@ export class FileSelectFileList {
       tmp.file = file;
 
       this._processSingleFileInner(tmp);
+      this._addBadFile(id);
+
+      if (tmp.isImage === true) {
+        this._setTempImageWatcher(tmp);
+      }
 
       return true;
     }

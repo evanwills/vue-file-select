@@ -27,7 +27,8 @@
           :no-move="noMove"
           v-on:cancel="handleCancel"
           v-on:upload="handleUpload">
-          <slot></slot>
+          <slot name="default"></slot>
+          <slot name="error"></slot>
         </FileSelectUiFileList>
         <button
           class="file-select-ui__btn file-select-ui-modal__btn-close"
@@ -37,6 +38,15 @@
 
       <canvas ref="fileSelectCanvas" class="sr-only"></canvas>
     </dialog>
+    <ModalDialogue
+      v-if="confirmCancel === true"
+      :body="confirmCancelMsg"
+      confirm-txt="Yes"
+      cancel-txt="No"
+      heading="Are you sure?"
+      :show-modal="showConfirm"
+      v-on:submit="doConfirmCancel"
+      v-on:cancel="handleCancelConfirm" />
   </div>
 </template>
 
@@ -46,6 +56,7 @@ import {
   onBeforeMount,
   onMounted,
   ref,
+  watch,
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
@@ -54,9 +65,12 @@ import { getAllowedTypes } from '../logic/file-select-utils';
 import FileSelectUiFileList from './FileSelectUiFileList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import FileSelectUiPreview from './FileSelectUiPreview.vue';
+import ModalDialogue from '../../../ModalDialogue.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
+
+const emit = defineEmits(['upload']);
 
 //  END:  Vue utils
 // ------------------------------------------------------------------
@@ -71,6 +85,21 @@ const props = defineProps({
   accept: { type: String, required: false, default: 'JPG PNG DOCX PDF' },
 
   /**
+   * Whether or not the user must confirm that they really do want to
+   * cancel their upload
+   *
+   * @property {boolean} uploadFailed
+   */
+  confirmCancel: { type: Boolean, required: false, default: false },
+
+  /**
+   * Body text of confirm cancel dialogue.
+   *
+   * @property {string} confirmCancelMsg
+   */
+  confirmCancelMsg: { type: String, required: false, default: '' },
+
+  /**
    * Whether or not to convert images to grey scale when
    * resizing/reducing them
    *
@@ -79,7 +108,7 @@ const props = defineProps({
    * >           will be ignored if it the image processor can't
    * >           support it.
    *
-   * @property {boolean} noInvalid
+   * @property {boolean} greyScale
    */
   greyScale: { type: Boolean, required: false, default: false },
 
@@ -188,6 +217,13 @@ const props = defineProps({
   previewAll: { type: Boolean, required: false, default: false },
 
   /**
+   * Whether or not the upload failed
+   *
+   * @property {boolean} uploadFailed
+   */
+  uploadFailed: { type: Boolean, required: false, default: false },
+
+  /**
    * Whether or not to use a WASM image resizer
    *
    * @property {boolean} wasm
@@ -205,14 +241,15 @@ const acceptTypes = ref('image/jpeg, image/png application/msdoc');
 const fileSelectCanvas = ref(null);
 const fileSelectUI = ref(null);
 const noResize = ref(false);
+const ePre = ref(null);
+const preveiwFileId = ref('');
+const showConfirm = ref(false);
 
 //  END:  Local state
 // ------------------------------------------------------------------
 // START: Computed helpers
 
 const getID = (tag) => `${tag}--${props.id}`;
-const ePre = ref(null);
-const preveiwFileId = ref('');
 
 //  END:  Computed helpers
 // ------------------------------------------------------------------
@@ -227,46 +264,26 @@ const multiple = computed(() => props.maxFileCount > 1);
 // ------------------------------------------------------------------
 // START: Helper methods
 
-const handleResizerEvents = (type, data) => {
-  console.group(ePre.value('handleResizerEvents'));
-  console.log('type:', type);
-  console.log('data:', data);
-  console.log('previewing.value (before):', previewing.value);
-  console.log('preveiwFileId.value (before):', preveiwFileId.value);
+const addedWatcher = (data) => {
+  previewing.value = (previewing.value === true && data.isImage === true);
+  preveiwFileId.value = data.id;
+  doShowModal(fileSelectUI.value);
+};
 
-  switch (type) { // eslint-disable-line default-case
-    case 'added':
-      previewing.value = (previewing.value === true && data.isImage === true);
-      preveiwFileId.value = data.id;
-      doShowModal(fileSelectUI.value);
-      break;
+const noResizeWatcher = (data) => { noResize.value = (data !== false); };
 
-    case 'noResize':
-      noResize.value = (data !== false);
-      break;
-
-    case 'toBeAdded':
-      previewing.value = (data === 1);
-      break;
-
-    case 'notadded':
-      previewing.value = false;
-      doShowModal(fileSelectUI.value);
-      break;
-  }
-
-  console.log('previewing.value (after):', previewing.value);
-  console.log('preveiwFileId.value (after):', preveiwFileId.value);
-  console.groupEnd();
+const toBeAddedWatcher = (data) => { previewing.value = (data === 1); };
+const notAddedWatcher = (data) => {
+  previewing.value = false;
+  doShowModal(fileSelectUI.value);
 };
 
 const initFiles = () => {
   console.group(ePre.value('initFIles'));
   selectedFiles.value = new FileSelectFileList(
     fileSelectCanvas.value,
-    handleResizerEvents,
     {
-      defaultAllowed: acceptTypes.value,
+      allowedTypes: acceptTypes.value,
       greyScale: props.greyScale,
       jpegCompression: props.jpegCompression,
       logging: true,
@@ -279,14 +296,18 @@ const initFiles = () => {
         noResize: 'This browser does not support image resizing. '
           + 'Please use a supported browser like Chrome or Firefox.',
         tooBigFile: 'File size exceeds allowable limit. '
-          + 'Individual files must be less than [[FILE_SIZE]] and [[MAX_TOTAL]] total '
+          + 'Individual files must be less than [[MAX_SINGLE]] and [[MAX_TOTAL]] total '
           + 'for multiple files.',
         invalidType: 'We detected an invalid file type. '
-        + 'Valid file types include, '
-        + '.docx, .doc, .pdf, .jpg, .jpeg, .png.',
+          + 'Valid file types include, [[TYPE_LIST]]'
       },
     },
   );
+
+  selectedFiles.value.addedWatcher('added', addedWatcher, props.id);
+  selectedFiles.value.addedWatcher('noResize', noResizeWatcher, props.id);
+  selectedFiles.value.addedWatcher('notadded', notAddedWatcher, props.id);
+  selectedFiles.value.addedWatcher('toBeAdded', toBeAddedWatcher, props.id);
   console.groupEnd();
 };
 
@@ -300,17 +321,31 @@ const retryInitFiles = (_initFiles, files, canvas) => () => {
   }
 };
 
+const doConfirmCancel = () => {
+  doCloseModal(fileSelectUI.value);
+  selectedFiles.value.deleteAll();
+  showConfirm.value = false;
+};
+
 //  END:  Helper methods
 // ------------------------------------------------------------------
 // START: Event handler methods
 
 const handleUpload = () => {
-
+  emit('upload', selectedFiles.value);
+  doCloseModal(fileSelectUI.value);
 };
 
 const handleCancel = () => {
-  doCloseModal(fileSelectUI.value);
-  selectedFiles.value.deleteAll();
+  if (props.confirmCancel === true) {
+    showConfirm.value = true;
+  } else {
+    doConfirmCancel();
+  }
+};
+
+const handleCancelConfirm = () => {
+  showConfirm.value = false;
 };
 
 const closePreview = () => { previewing.value = false; };
@@ -318,6 +353,12 @@ const closePreview = () => { previewing.value = false; };
 //  END:  Event handler methods
 // ------------------------------------------------------------------
 // START: Watcher methods
+
+watch(() => props.uploadFailed, (newVal) => {
+  if (newVal === true) {
+    doShowModal(fileSelectUI.value);
+  }
+});
 
 //  END:  Watcher methods
 // ------------------------------------------------------------------

@@ -10,7 +10,7 @@ import {
   rewriteError,
 } from './file-select-utils';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
-import { FileSelectCommunicatorLogging as FileSelectCommunicator } from './FileSelectCommunicatorLogging.class';
+import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 
 export class FileSelectDataFile {
   // ----------------------------------------------------------------
@@ -79,6 +79,7 @@ export class FileSelectDataFile {
     try {
       this._defaultAllowed = getAllowedTypes(allowedTypes);
     } catch (e) {
+      console.error('something went wrong with allowed types');
       throw Error(e.message);
     }
   }
@@ -111,7 +112,7 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
   // START: Constructor method
 
-  constructor(file, config = null, comms = null) {
+  constructor(file, config = null, comms = null, imgProcessor = null) {
     if (file instanceof File === false) {
       throw new Error(
         'FileSelectDataFile constructor expects first parameter to '
@@ -123,6 +124,7 @@ export class FileSelectDataFile {
     this._ext = getFileExtension(file);
     this._file = file;
     this._id = nanoid(8);
+    this._imgProcessor = imgProcessor;
     this._invalid = false;
     this._isImage = fileIsImage(file);
     this._metaWaiting = false;
@@ -153,12 +155,29 @@ export class FileSelectDataFile {
     if (this._isImage) {
       this._getImgSrc(file);
       this.setImageMetadata(true);
+      this._triggerProcessImage();
     }
   }
 
   //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: Private method
+
+  _triggerProcessImage() {
+    if (this._isImage) {
+      const context = this;
+      const action = 'imageMetaSet';
+
+      this._comms.addWatcher(
+        action,
+        () => {
+          context.process();
+          context._comms.removeWatcher(action, this._id);
+        },
+        this._id,
+      )
+    }
+  }
 
   _getImgSrc(file) {
     const reader = new FileReader();
@@ -230,6 +249,7 @@ export class FileSelectDataFile {
       this._replaceCount += 1;
       this._setOK();
       this.setImageMetadata(true);
+      this._triggerProcessImage();
       this._dispatch('replaced', this._id);
     }
   }
@@ -278,7 +298,7 @@ export class FileSelectDataFile {
    */
   set name(name) {
     if (typeof name === 'string') {
-      const tmp = getUniqueFileName(name.trim());
+      const tmp = getUniqueFileName(name.trim(), this._id);
       if (tmp !== '') {
         this._previousName = this._name;
         this._name = tmp;
@@ -443,6 +463,10 @@ export class FileSelectDataFile {
         }
 
         this._dispatch('imageMetaSet', this._id);
+
+        if (this._processing === false) {
+          this.process();
+        }
       });
     }
 
@@ -465,13 +489,13 @@ export class FileSelectDataFile {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addWatcher(dispatcher, id, replace = false) {
+  addWatcher(action, watcher, id, replace = false) {
     if (this._comms !== null) {
       try {
-        this._comms.addWatcher(dispatcher, id, replace);
+        this._comms.addWatcher(action, watcher, id, replace);
       } catch (error) {
-        // console.error(error.message);
-        // throw Error(error.message);
+        console.error(error.message);
+        // throw Error error message
       }
     }
   }
@@ -484,9 +508,9 @@ export class FileSelectDataFile {
    * @returns {boolean} TRUE if the dispatcher was removed.
    *                    FALSE otherwise
    */
-  removeWatcher(id) {
+  removeWatcher(action, id) {
     return (this._comms !== null)
-      ? this._comms.removeWatcher(id)
+      ? this._comms.removeWatcher(action, id)
       : false;
   }
 
@@ -501,11 +525,11 @@ export class FileSelectDataFile {
    *
    * @returns {boolean}
    */
-  async process(imgProcessor = null) {
-    if (this._isImage === true && imgProcessor !== null) {
+  async process() {
+    if (this._isImage === true && this._processing === false &&  this._imgProcessor !== null) {
       this._processing = true;
 
-      await imgProcessor.process(this);
+      await this._imgProcessor.process(this);
 
       if (this._ogSize !== this._file.size) {
         this._getImgSrc(this._file);

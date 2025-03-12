@@ -1,6 +1,17 @@
 <template>
   <div class="file-select-ui-file-list">
-    <slot v-if="files.length === 0"></slot>
+    <!-- START SLOT: default -->
+    <slot name="default"></slot>
+    <!--  END SLOT:  default -->
+
+    <!-- START SLOT: emptylist -->
+    <slot
+      v-if="Array.isArray(files) === false || files.length === 0"
+      name="emptylist">
+      <p>No files have been added.</p>
+    </slot>
+    <!--  END SLOT:  emptylist -->
+
     <SimpleCarousel
       v-else
       :focus-pos="focusIndex"
@@ -40,6 +51,10 @@
         type="error" />
     </div>
 
+    <!-- START SLOT: error -->
+    <slot name="error"></slot>
+    <!--  END SLOT:  error -->
+
     <p class="file-select-ui__btn-list">
       <FileSelectUiInput
         v-if="fileList !== null"
@@ -58,14 +73,15 @@
 import {
   computed,
   onBeforeMount,
+  onUnmounted,
   onUpdated,
   ref,
 } from 'vue';
-import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
 import { getEpre } from '../../../utils/general-utils';
+import AlertBlock from '../../AlertBlock.vue';
+import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import SimpleCarousel from '../../SimpleCarousel.vue';
-import AlertBlock from '../../AlertBlock.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -95,6 +111,7 @@ const ePre = ref(null);
 const init = ref(false);
 const focusIndex = ref(0);
 const badFile = ref([]);
+const watchers = ref([]);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -104,81 +121,84 @@ const badFile = ref([]);
 // ------------------------------------------------------------------
 // START: Computed state
 
-// const showErrors = computed(() => (props.fileList !== null
-//   && (props.fileList.ok === false || badFile.value.length > 0)));
-const showErrors = computed(() => {
-  console.group(ePre.value('showErrors'));
-  console.log('props.fileList:', props.fileList);
-  console.log('badFile.value:', [...badFile.value]);
+const showErrors = computed(() => (props.fileList !== null
+    && (props.fileList.ok === false || badFile.value.length > 0)));
 
-  if (props.fileList !== null) {
-    console.log('props.fileList.ok:', props.fileList.ok);
-    console.log('props.fileList.tooBig():', props.fileList.tooBig());
-    console.log('props.fileList.tooMany():', props.fileList.tooMany());
-  }
-
-  console.groupEnd();
-  return (props.fileList !== null
-    && (props.fileList.ok === false || badFile.value.length > 0));
-});
 const total = computed(() => props.fileList.getFileCount());
+
 const inputID = computed(() => `${props.id}--add-files`);
 
 //  END:  Computed state
 // ------------------------------------------------------------------
 // START: Helper methods
 
-const listChange = (type, data) => {
-  const actions = [
-    'added',
-    'completed',
-    'deleted',
-    'moved',
-    'notadded',
-    'processCount',
-    'processed',
-    'replaced',
-  ];
-  console.group(ePre.value('listChange'));
-  console.log('badFile.value (before):', [...badFile.value]);
-  console.log('data:', data);
-  console.log('files.value.length (before):', files.value.length);
-  console.log('focusIndex.value (before):', focusIndex.value);
-  if (actions.includes(type) || (type === 'processCount' && data === 0)) {
-    files.value = props.fileList.getAllFilesRaw();
+const updateBadFile = (data) => {
+  badFile.value = [];
 
-    switch (type) { // eslint-disable-line default-case
-      case 'deleted':
-        badFile.value = [];
-        focusIndex.value -= 1;
-        break;
-
-      case 'added':
-        badFile.value = [];
-        focusIndex.value = (files.value.length - 1);
-        break;
-
-      case 'notadded':
-        badFile.value = [];
-
-        if (data.invalid === true) {
-          badFile.value.push('invalid');
-        }
-        if (data.oversize === true) {
-          badFile.value.push('tooBig');
-        }
-        break;
-    }
+  if (data.invalid === true) {
+    badFile.value.push('invalid');
   }
-  console.log('badFile.value (after):', [...badFile.value]);
-  console.log('focusIndex.value (before):', focusIndex.value);
-  console.groupEnd();
+  if (data.oversize === true) {
+    badFile.value.push('tooBig');
+  }
+};
+
+const resetFiles = () => {
+  files.value = props.fileList.getAllFilesRaw();
+}
+
+
+const deletedWatcher = (data) => {
+  resetFiles();
+  badFile.value = [];
+  focusIndex.value -= 1;
+};
+
+const addedWatcher = (data) => {
+  resetFiles();
+  updateBadFile(data);
+  focusIndex.value = (files.value.length - 1);
+};
+
+const notAddedWatcher = (data) => {
+  files.value = props.fileList.getAllFilesRaw();
+  updateBadFile(data);
+};
+
+const processCountWatcher = (data) => {
+  if (data === 0) {
+    files.value = props.fileList.getAllFilesRaw();
+  }
 };
 
 const setWatcher = () => {
   if (init.value === false && props.fileList !== null) {
+    const actions = [
+      'completed',
+      'moved',
+      'oversize',
+      'processed',
+      'replaced',
+    ];
+
     init.value = true;
-    props.fileList.addWatcher(listChange, componentName);
+
+    for (const key of actions) {
+      props.fileList.addWatcher(key, resetFiles, props.id);
+    }
+
+    props.fileList.addWatcher('added', addedWatcher, props.id);
+    props.fileList.addWatcher('deleted', deletedWatcher, props.id);
+    props.fileList.addWatcher('notadded', notAddedWatcher, props.id);
+    props.fileList.addWatcher('processCount', processCountWatcher, props.id);
+
+    watchers.value = [
+      ...actions,
+      'added',
+      'deleted',
+      'notadded',
+      'processCount',
+    ];
   }
 };
 
@@ -187,7 +207,9 @@ const setWatcher = () => {
 // START: Event handler methods
 
 const handleUpload = () => {
-  emit('upload');
+  if (showErrors.value === false) {
+    emit('upload');
+  }
 };
 
 const handleCancel = () => {
@@ -223,6 +245,10 @@ onBeforeMount(() => {
 
 onUpdated(() => {
   setWatcher();
+});
+
+onUnmounted(() => {
+  props.fileList.removeWatchersById(props.id);
 });
 
 //  END:  Lifecycle methods

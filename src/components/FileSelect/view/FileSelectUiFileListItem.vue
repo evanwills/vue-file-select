@@ -9,6 +9,13 @@
         class="img"
         :key="imgSrcReset"
         :src="imgSrc" />
+      <div
+        v-else
+        class="h-80 bg-grey-50 flex flex-col justify-center items-center text-body-md  gap-y-1
+          before:font-symbol before:text-[2rem] before:leading-8 before:content-['description']">
+        No preview available
+      </div>
+      
       <span class="data-info">
         <span class="data-info-child">
           <span class="l">Size:</span> <span class="v">{{ s }}B</span>
@@ -24,16 +31,6 @@
     </div>
 
     <p class="btn-list">
-      <button
-        v-if="!noDelete"
-        class="delete"
-        :disabled="!isFocused"
-        :tabindex="tabIndex"
-        :title="`Delete ${name}`"
-        type="button"
-        v-on:click="emitDelete">
-        <span>Delete {{ name }}</span>
-      </button>
       <span v-if="noMove === false">
         <button
           v-if="canMoveUp"
@@ -55,6 +52,16 @@
           <span>Move {{ name }} down one place</span>
         </button>
       </span>
+      <button
+        v-if="!noDelete"
+        class="delete"
+        :disabled="!isFocused"
+        :tabindex="tabIndex"
+        :title="`Delete ${name}`"
+        type="button"
+        v-on:click="emitDelete">
+        <span>Delete {{ name }}</span>
+      </button>
 
       <span v-if="noMove === false">
         <button v-if="canMoveUp"
@@ -143,7 +150,8 @@ const imgSrcReset = ref(0);
 const canMoveUp = computed(() => (props.pos > 0));
 const canMoveDown = computed(() => (props.pos < props.total));
 
-const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '').replace(/(?=\.)/g, '<wbr />'));
+const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '')
+  .substring(0, 128).replace(/(?=\.)/g, '<wbr />'));
 
 const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
   return (props.isFocused)

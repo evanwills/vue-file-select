@@ -1,6 +1,5 @@
-// import { getValidJpegCompression, getValidMaxImgPx, getValidMaxSingleSize, overrideConfig } from "./file-select-utils";
-import FileSelectFileData from "./FileSelectFileData.class";
-import ImageProcessor from "./ImageProcessor.class";
+import FileSelectFileData from './FileSelectFileData.class';
+import { ImageProcessor } from './ImageProcessor.class';
 
 const photonURL = 'http://localhost:3917/wasm/photon_rs_bg.wasm';
 
@@ -27,12 +26,6 @@ export class PhotonImageProcessor extends ImageProcessor {
   constructor (canvas, config = null, comms = null) {
     super(canvas, config, comms);
     this._obj = 'PhotonImageProcessor';
-
-    // try {
-    //   super(canvas, config);
-    // } catch (e) {
-    //   throw Error(e.message);
-    // }
   }
 
   //  END:  Instance constructor
@@ -44,18 +37,19 @@ export class PhotonImageProcessor extends ImageProcessor {
    * @param {FileSelectFileData} fileData
    * @param {number}             resizeRatio
    */
-  async #processImg(fileData, resizeRatio) {
+  async _processImg(fileData, resizeRatio) {
     // See documentation:
     // https://silvia-odwyer.github.io/photon/guide/using-photon-web/
 
     this._dispatch('startprocessing', fileData);
-    const ctx = canvas.getContext('2d');
+    const ctx = this.canvas.getContext('2d');
 
     // Draw the image element onto the canvas
     ctx.drawImage(fileData.file, 0, 0);
 
-    // Convert the ImageData found in the canvas to a PhotonImage (so that it can communicate with the core Rust library)
-    let image = PhotonImageProcessor.#processor.open_image(canvas, ctx);
+    // Convert the ImageData found in the canvas to a PhotonImage
+    // (so that it can communicate with the core Rust library)
+    const image = PhotonImageProcessor.#processor.open_image(this.canvas, ctx);
 
     PhotonImageProcessor.#processor.reisze(
       image,
@@ -74,8 +68,11 @@ export class PhotonImageProcessor extends ImageProcessor {
       image,
     );
 
-    fileData.file = await this.#getProcessedImageFile(fileData.file, this._canvas);
-    fileData.size = file.file.size;
+    // eslint-disable-next-line no-param-reassign
+    fileData.file = await this._getProcessedImageFile(fileData.file, this._canvas);
+    // eslint-disable-next-line no-param-reassign
+    fileData.size = file.size;
+    // eslint-disable-next-line no-param-reassign
     fileData.ok = (file.size < this._config.maxSingleSize);
     fileData.setImageMetadata(true);
     this._dispatch('endprocessing', fileData);
@@ -85,13 +82,13 @@ export class PhotonImageProcessor extends ImageProcessor {
     //   : null;
   }
 
-  static #setPhoton (photon) {
+  static _setPhoton(photon) {
     this.#processor = photon;
   }
 
-  #initPhoton (file, resizeRatio) {
-    const setPhoton = PhotonImageProcessor.#setPhoton;
-    const proccessImg = this.#processImg;
+  _initPhoton(file, resizeRatio) {
+    const setPhoton = PhotonImageProcessor._setPhoton;
+    const proccessImg = this._processImg;
 
     return (photon) => {
       setPhoton(photon);
@@ -99,7 +96,7 @@ export class PhotonImageProcessor extends ImageProcessor {
     };
   }
 
-  async #getProcessedImageFile ({ uniqueName, lastModified }, canvas) {
+  async _getProcessedImageFile({ uniqueName, lastModified }, canvas) {
     return new Promise((resolve) => {
       canvas.toBlob(
         (blob) => {
@@ -120,11 +117,11 @@ export class PhotonImageProcessor extends ImageProcessor {
     });
   }
 
-  async _processInner (fileData, resizeRatio) {
+  async _processInner(fileData, resizeRatio) {
     if (PhotonImageProcessor.#processor === null) {
-      import('@silvia-odwyer/photon').then(this.#initPhoton(fileData, resizeRatio));
+      import('@silvia-odwyer/photon').then(this._initPhoton(fileData, resizeRatio));
     } else {
-      this.#processImg(fileData, resizeRatio);
+      this._processImg(fileData, resizeRatio);
     }
   }
 
@@ -132,7 +129,7 @@ export class PhotonImageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Public methods
 
-  forceInit () {
+  forceInit() {
     if (PhotonImageProcessor.#processor === null) {
       import('@silvia-odwyer/photon').then(
         PhotonImageProcessor.#setPhoton,

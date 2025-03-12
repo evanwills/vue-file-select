@@ -16,6 +16,7 @@
 <script setup>
 import { onBeforeMount, ref } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
+import { isNonEmptyStr } from '../../../utils/data-utils';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -32,6 +33,7 @@ const props = defineProps({
   id: { type: String, required: true },
   label: { type: String, required: true },
   multi: { type: Boolean, required: false, default: false },
+  replaceId: { type: String, required: false, default: '' },
 });
 
 //  END:  Props
@@ -41,7 +43,7 @@ const props = defineProps({
 const fileSelectUiInput = ref(null);
 const init = ref(false);
 const ePre = ref(null);
-const allowMulti = ref(props.multi);
+const allowMulti = ref(true);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -58,7 +60,7 @@ const allowMulti = ref(props.multi);
 const listChange = (type, data) => {
   if (type === 'processCount' && data === 0) {
     fileSelectUiInput.value = '';
-    allowMulti.value = props.fileList.allowMultiple();
+    allowMulti.value = (props.replaceId === '' && props.fileList.allowMultiple());
   }
 };
 
@@ -78,7 +80,11 @@ const handleFileChange = (event) => {
     && typeof event.target.files !== 'undefined'
   ) {
     try {
-      props.fileList.processFiles(event.target.files);
+      if (isNonEmptyStr(props.replaceId) === true) {
+        props.fileList.replaceFile(props.replaceId, event.target.files[0]);
+      } else {
+        props.fileList.processFiles(event.target.files);
+      }
     } catch (error) {
       console.error(ePre.value('handleFileChange'), error);
     }
@@ -96,6 +102,7 @@ const handleFileChange = (event) => {
 onBeforeMount(() => {
   if (ePre.value === null) {
     ePre.value = getEpre(componentName, props.id);
+    allowMulti.value = (props.replaceId === '' && props.fileList.allowMultiple());
     setWatcher();
   }
 });

@@ -6,8 +6,9 @@
     <div v-if="!dismissed" :class="wrapClass" role="alert">
       <span
         v-if="symbol && noIcon === false"
-        class="alert-block__icon">
-        {{ icon }}
+        :class="iconClass"
+        :data-icon="symbol">
+        {{ symbol }}
       </span>
       <div class="alert-block__head">
         <component
@@ -211,36 +212,11 @@ const ePre = ref(null); // eslint-disable-line no-unused-vars
  */
 const wrapClass = computed(
   () => {
-    let side = 'border-l-4';
-    let corners = 'rounded-r-lg';
+    const type = (props.notice === true)
+      ? 'notice'
+      : 'alert';
 
-    if (props.notice === true) {
-      side = 'border-t-4';
-      corners = 'rounded-b-lg';
-    }
-
-    let colours = '';
-
-    switch (props.type) {
-      case 'info':
-        colours = 'bg-purple-50 border-purple-500 text-purple-700';
-        break;
-
-      case 'warning':
-        colours = 'bg-sand-50 border-sand-500 text-sand-700';
-        break;
-
-      case 'success':
-        colours = 'bg-green-50 border-green-500 text-green-700';
-        break;
-
-      case 'error':
-      default:
-        colours = 'bg-red-50 border-red-500 text-red-700';
-    }
-
-    return 'relative box-border flex flex-col max-w-xl p-4 pl-12 '
-      + `${corners} ${side} ${colours}`;
+    return `alert-block alert-block--${type} alert-block--${props.type}`;
   },
 );
 
@@ -276,30 +252,7 @@ const symbol = computed(() => {
  *
  * @return {ComputedRef<string>}
  */
-const iconClass = computed(() => {
-  let colours = '';
-
-  switch (props.type) {
-    case 'info':
-      colours = 'text-purple-500';
-      break;
-
-    case 'warning':
-      colours = 'text-sand-500';
-      break;
-
-    case 'success':
-      colours = 'text-green-500';
-      break;
-
-    case 'error':
-    default:
-      colours = 'text-red-500';
-  }
-
-  return 'material-symbols-rounded absolute top-4 left-4 mr-3 leading-5 '
-   + `${colours} before:text-xl before:content-['${symbol.value}']`;
-});
+const iconClass = computed(() => `alert-block__icon alert-block__icon--${props.type}`);
 
 /**
  * Correct tag name to use for the heading.
@@ -345,3 +298,67 @@ onBeforeMount(() => {
   }
 });
 </script>
+
+<style lang="css" scoped>
+.alert-block {
+  border-bottom-right-radius: 0.5rem;
+  border-style: solid;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1rem 1rem 3rem;
+  position: relative;
+  max-width: 36rem;
+}
+.alert-block--notice {
+  border-top-width: 0.25rem;
+  border-bottom-left-radius: 0.5rem;
+}
+.alert-block--alert {
+  border-left-width: 0.25rem;
+  border-top-right-radius: 0.5rem;
+}
+.alert-block--info {
+  --alert-colour: rgb(35, 0, 105);
+  --alert-icon: info;
+  color: var(--alert-colour);
+  background-color: rgb(181, 151, 243);
+  border-color: var(--alert-colour);
+}
+.alert-block--warning {
+  --alert-colour: rgb(122, 75, 13);
+  --alert-icon: warning;
+  color: var(--alert-colour);
+  background-color: rgb(243, 201, 147);
+  border-color: var(--alert-colour);
+}
+.alert-block--success {
+  --alert-colour: rgb(15, 108, 36);
+  --alert-icon: \e86c;
+  color: var(--alert-colour);
+  background-color: rgb(153, 233, 170);
+  border-color: var(--alert-colour);
+}
+.alert-block--error {
+  --alert-colour: rgb(113, 18, 18);
+  --alert-icon: error;
+  color: var(--alert-colour);
+  background-color: rgb(190, 117, 117);
+  border-color: var(--alert-colour);
+}
+
+.alert-block__icon {
+  font-family: material-symbols-rounded;
+  font-size: 1.25rem;
+  color: var(--alert-colour);
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  margin-right: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.alert-block__icon::before {
+  content: attr(data-icon string, var(--alert-icon));
+}
+</style>

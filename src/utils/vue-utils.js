@@ -4,7 +4,7 @@
  * components.
  */
 
-import { isNonEmptyStr, isObj } from './data-utils';
+import { forceNum, isNonEmptyStr, isObj } from './data-utils';
 
 /**
  * Safely open a possibly already open dialogue model
@@ -315,14 +315,31 @@ export const saveAttemptedDetected = (event) => (typeof event !== 'undefined'
   && event.relatedTarget.className.includes('save--disabled')
 );
 
-export const getHtag = (input, _default) => {
-  let h = input;
-  if (typeof h === 'string') {
-    h = parseInt(h, 10);
-  }
+/**
+ * Get the heading level to be used as the number part of a heading
+ * element's tag name
+ *
+ * @param {number|any} level  Desired level of heading
+ * @param {number}     defLev Default heading level if level could
+ *                            not be parsed to a valid heading level
+ *
+ * @returns {number} Valid HTML heading level (1-6)
+ */
+export const getHlevel = (level, defLev) => {
+  const _lev = forceNum(level);
 
-  if (typeof h !== 'number' || h < 1 || h > 6) {
-    h = _default;
-  }
-  return `h${h}`;
+  return (_lev === null || _lev < 1 || _lev > 6)
+    ? defLev
+    : _lev;
 };
+
+/**
+ * Get tag name for heading element
+ *
+ * @param {number|any} level  Desired level of heading
+ * @param {number}     defLev Default heading level if level could
+ *                            not be parsed to a valid heading level
+ *
+ * @returns {string} Heading tag name
+ */
+export const getHtag = (level, defLev) => `h${getHlevel(level, defLev)}`;

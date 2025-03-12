@@ -4,23 +4,28 @@
     <header><h2 class="text-heading-md">Preview</h2></header>
     <LoadingSpinner v-if="isProcessing" class="img" />
     <div v-else class="flex flex-col gap-y-4">
-      <img :key="src" :src="src" alt="" />
+      <img
+        alt=""
+        :key="src"
+        :src="src" />
 
       <p class="text-bold-md text-center">{{ fileName }}</p>
     </div>
     <slot><!-- canvas goes here --></slot>
     <footer v-if="!isProcessing">
       <p class="flex flex-col md:flex-row gap-4 content-center">
+
         <button
-          type="button"
           class="btn-pri btn-lg"
+          type="button"
           v-on:click="handleUse">{{ btnTxtUse }}</button>
         <FileSelectUiInput
           v-if="fileList !== null"
           :accept-types="acceptTypes"
           :file-list="fileList"
           :id="replaceID"
-          :label="btnTxtReplace" />
+          :label="btnTxtReplace"
+          :replace-id="fileId" />
       </p>
     </footer>
   </section>
@@ -30,6 +35,7 @@
 import {
   computed,
   onBeforeMount,
+  onUnmounted,
   ref,
   watch,
 } from 'vue';
@@ -117,23 +123,26 @@ const setFile = async (id) => {
   }
 };
 
-const getFileListwatcherSet = (type, data) => {
-  if (file.value !== null && data === fileID.value) {
-    switch (type) { // eslint-disable-line default-case
-      case 'imgSrcSet':
-        src.value = file.value.src;
-        fileName.value = file.value.name;
-        isProcessing.value = file.value.processing;
-        break;
+const forMe = (id) => (file.value !== null && data === fileID.value);
 
-      case 'endprocessingimage':
-        isProcessing.value = false;
-        setMeta();
-        break;
+const imgSrcSetWatcher = (data) => {
+  if (forMe() === true) {
+    src.value = file.value.src;
+    fileName.value = file.value.name;
+    isProcessing.value = file.value.processing;
+  }
+};
 
-      case 'imageMetaSet':
-        setMeta();
-    }
+const endProcessingImageWatcher = (data) => {
+  if (forMe() === true) {
+    isProcessing.value = false;
+    setMeta();
+  }
+};
+
+const imageMetaSetWatcher = (data) => {
+  if (forMe() === true) {
+    setMeta();
   }
 };
 
@@ -141,7 +150,9 @@ const setWatcher = () => {
   if (isFileList.value === true && watcherSet.value === false) {
     watcherSet.value = true;
 
-    props.fileList.addWatcher(getFileListwatcherSet, props.id);
+    props.fileList.addWatcher('endprocessingimage', endProcessingImageWatcher, props.id);
+    props.fileList.addWatcher('imageMetaSet', imageMetaSetWatcher, props.id);
+    props.fileList.addWatcher('imgSrcSet', imgSrcSetWatcher, props.id);
   }
 };
 
@@ -190,6 +201,14 @@ onBeforeMount(() => {
     setWatcher();
   }
 });
+
+onUnmounted(() => {
+  const watchers = ['endprocessingimage', 'imageMetaSet', 'imgSrcSet'];
+
+  for (const event of watchers) {
+    props.fileList.removeWatcher('imgSrcSet', props.id);
+  }
+})
 
 //  END:  Lifecycle methods
 // ------------------------------------------------------------------
