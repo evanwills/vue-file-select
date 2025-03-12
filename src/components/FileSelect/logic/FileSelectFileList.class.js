@@ -1523,7 +1523,7 @@ export class FileSelectFileList {
     const tmp = this.getFile(id);
 
     if (tmp !== null) {
-      tmp.file = file;
+      tmp.replace(file);
 
       this._processSingleFileInner(tmp);
       this._addBadFile(id);

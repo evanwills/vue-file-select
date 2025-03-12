@@ -42,6 +42,8 @@ export class FileSelectDataFile {
 
   _name;
 
+  _newFile = false;
+
   _ogName;
 
   _ogSize;
@@ -130,6 +132,7 @@ export class FileSelectDataFile {
     this._metaWaiting = false;
     this._mime = file.type;
     this._name = getUniqueFileName(file.name, this._id);
+    this._newFile = true;
     this._ogName = file.name;
     this._ogSize = file.size;
     this._ok = true;
@@ -164,7 +167,7 @@ export class FileSelectDataFile {
   // START: Private method
 
   _triggerProcessImage() {
-    if (this._isImage) {
+    if (this._isImage && this._comms !== null) {
       const context = this;
       const action = 'imageMetaSet';
 
@@ -464,7 +467,8 @@ export class FileSelectDataFile {
 
         this._dispatch('imageMetaSet', this._id);
 
-        if (this._processing === false) {
+        if (this._newFile === true && this._processing === false) {
+          this._newFile = false;
           this.process();
         }
       });
@@ -542,6 +546,11 @@ export class FileSelectDataFile {
     }
 
     return false;
+  }
+
+  replace(file) {
+    this._newFile = true;
+    this.file = file;
   }
 
   //  END:  Public utility methods
