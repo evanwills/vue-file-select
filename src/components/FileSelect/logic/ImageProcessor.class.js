@@ -37,6 +37,44 @@ export class ImageProcessor {
 
   //  END:  Define instance properties
   // ----------------------------------------------------------------
+  // START: Instance constructor
+
+  constructor(canvas, config = null, comms = null) {
+    if (typeof canvas === 'undefined' || canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
+      throw new Error(
+        'ImageProcessor constructor expects first argument '
+        + '`canvas` to be an instance of an HTML canvas '
+        + 'element/DOM node.',
+      );
+    }
+
+    this._canvas = canvas;
+    this._obj = 'ImageProcessor';
+
+    // Check whether image resizing is possible.
+    this._noResize = ImageProcessor.canResize() === false;
+
+    if (this._noResize === true) {
+      // Looks like resizing is not possible so we'll send out a
+      // message
+      this._dispatch('noResize', true);
+    }
+
+    try {
+      this._setConfig(config);
+    } catch (e) {
+      throw Error(e.message);
+    }
+
+    if (comms !== null) {
+      if (comms instanceof FileSelectCommunicator) {
+        this._comms = comms;
+      }
+    }
+  }
+
+  //  END:  Instance constructor
+  // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
   static canResize() {
@@ -85,44 +123,6 @@ export class ImageProcessor {
 
   //  END:  Static getter & setter methods
   // ----------------------------------------------------------------
-  // START: Instance constructor
-
-  constructor(canvas, config = null, comms = null) {
-    if (typeof canvas === 'undefined' || canvas === null || (canvas instanceof HTMLCanvasElement) === false) {
-      throw new Error(
-        'ImageProcessor constructor expects first argument '
-        + '`canvas` to be an instance of an HTML canvas '
-        + 'element/DOM node.',
-      );
-    }
-
-    this._canvas = canvas;
-    this._obj = 'ImageProcessor';
-
-    // Check whether image resizing is possible.
-    this._noResize = ImageProcessor.canResize() === false;
-
-    if (this._noResize === true) {
-      // Looks like resizing is not possible so we'll send out a
-      // message
-      this._dispatch('noResize', true);
-    }
-
-    try {
-      this._setConfig(config);
-    } catch (e) {
-      throw Error(e.message);
-    }
-
-    if (comms !== null) {
-      if (comms instanceof FileSelectCommunicator) {
-        this._comms = comms;
-      }
-    }
-  }
-
-  //  END:  Instance constructor
-  // ----------------------------------------------------------------
   // START: Private methods
 
   _setConfig(config) {
@@ -130,7 +130,7 @@ export class ImageProcessor {
       greyScale: ImageProcessor._greyscale,
       jpegCompression: ImageProcessor._jpegCompression,
       maxImgPx: ImageProcessor._maxImgPx,
-      maxSingleSize: ImageProcessor._maxSingleSize,
+      maxSize: ImageProcessor._maxSingleSize,
     };
 
     try {
@@ -145,16 +145,16 @@ export class ImageProcessor {
    * @param {FileSelectFileData} fileData
    * @returns {FileSelectFileData}
    */
-  async _getResizeRatio(fileData) {
-    await fileData.setImageMetadata();
+  async _getResizeRatio(height, width) {
+    const portrait = (height > width);
 
-    if (fileData.format === 'portrait') {
-      if (fileData.height() > this._config.maxImgPx) {
-        return this._config.maxImgPx / fileData.height();
+    if (portrait === true) {
+      if (height > this._config.maxImgPx) {
+        return (this._config.maxImgPx / height);
       }
-    } else if (fileData.width() > this._config.maxImgPx) {
+    } else if (width > this._config.maxImgPx) {
       // This works for both landscape and square format images.
-      return this._config.maxImgPx / fileData.width();
+      return (this._config.maxImgPx / width);
     }
 
     return 1;
@@ -191,31 +191,29 @@ export class ImageProcessor {
   /**
    * Process image
    *
-   * @param {FileSelectFileData} fileData
+   * @param {File} file
+   * @param {number} height
+   * @param {number} width
    *
-   * @returns {FileSelectFileData}
+   * @returns {Promise<{File|null}>}
    */
-  async process(fileData) {
-    if (isFileDataObj(fileData) && fileData.isImage === true) {
-      // NOTE: _getResizeRatio() has the (potential) side effect of
-      //       modifying `fileData` by causing fileData to add image
-      //       height, width & format info to itself
-      const resizeRatio = this._getResizeRatio(fileData);
+  async process(file, height, width) {
+    if (this._noResize === false
+      && file instanceof File
+      && file.type.startsWith('image')
+      && file.type !== 'image/svg+xml'
+    ) {
+      const resizeRatio = this._getResizeRatio(height, width);
 
-      if (this._noResize === false
-        && (fileData.tooLarge === true
+      if (file.size > this._config.maxSize
         || this._config.greyScale === true
-        || (resizeRatio < 1 && resizeRatio > 0))
+        || (resizeRatio > 0 && resizeRatio < 1)
       ) {
-        this._dispatch('startimgpropcessing:', fileData);
-
         return this._processInner(fileData, resizeRatio);
       }
-
-      return fileData;
     }
 
-    return fileData;
+    return Promise.resolve(null);
   }
 
   noResize() { return this._noResize; }

@@ -60,7 +60,7 @@ import {
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
-import { FileSelectFileList } from '../logic/FileSelectFileList.class';
+import { FileSelectList } from '../logic/FileSelectList.class';
 import { getAllowedTypes } from '../logic/file-select-utils';
 import FileSelectUiFileList from './FileSelectUiFileList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
@@ -280,7 +280,7 @@ const notAddedWatcher = (data) => {
 
 const initFiles = () => {
   console.group(ePre.value('initFIles'));
-  selectedFiles.value = new FileSelectFileList(
+  selectedFiles.value = new FileSelectList(
     fileSelectCanvas.value,
     {
       allowedTypes: acceptTypes.value,

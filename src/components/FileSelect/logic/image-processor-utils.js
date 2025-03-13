@@ -5,13 +5,14 @@
  *
  * @returns {Promise<Image>}
  */
-const getImage = (file) => new Promise(
+const getImage = (src) => new Promise(
   (resolve) => {
     const img = new Image();
 
     img.onload = () => {
       resolve(img);
     };
+    img.src = src;
   },
 );
 
@@ -22,8 +23,8 @@ const getImage = (file) => new Promise(
  *
  * @returns {Object<{format:string,height:number,width:number}}
  */
-export const getImageMetadata = async (file) => {
-  const img = await getImage(file);
+export const getImageMetadata = async (src) => {
+  const img = await getImage(src);
   let format = 'square';
 
   if (img.height > img.width) {
@@ -42,3 +43,5 @@ export const getImageMetadata = async (file) => {
 };
 
 export const fileIsImage = (file) => file.type.startsWith('image/');
+
+export const canResizeImg = (file) => (fileIsImage(file) && !file.type.startsWith('image/svg'));

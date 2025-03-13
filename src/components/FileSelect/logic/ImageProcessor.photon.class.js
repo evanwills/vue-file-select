@@ -1,4 +1,4 @@
-import FileSelectFileData from './FileSelectFileData.class';
+import FileSelectFileData from './FileSelectData.class';
 import { ImageProcessor } from './ImageProcessor.class';
 
 const photonURL = 'http://localhost:3917/wasm/photon_rs_bg.wasm';

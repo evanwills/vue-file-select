@@ -15,7 +15,7 @@
           before:font-symbol before:text-[2rem] before:leading-8 before:content-['description']">
         No preview available
       </div>
-      
+
       <span class="data-info">
         <span class="data-info-child">
           <span class="l">Size:</span> <span class="v">{{ s }}B</span>
@@ -110,7 +110,7 @@ const emit = defineEmits(['delete', 'preview', 'move']);
 
 const props = defineProps({
   /**
-   * @property {FileSelectDataFile} data
+   * @property {FileSelectData} data
    */
   data: { type: Object, required: true },
   id: { type: String, required: true },
@@ -227,7 +227,7 @@ const setFileMeta = async () => {
 const handleFileChanges = async (type, data) => {
   if (data === props.data.id) {
     switch (type) { // eslint-disable-line default-case
-      case 'imgSrcSet':
+      case 'imageSrcSet':
         imgSrc.value = props.data.src;
         processing.value = props.data.processing;
         await nextTick();
