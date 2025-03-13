@@ -12,8 +12,6 @@ const getImage = (file) => new Promise(
     img.onload = () => {
       resolve(img);
     };
-
-    img.src = URL.createObjectURL(file);
   },
 );
 

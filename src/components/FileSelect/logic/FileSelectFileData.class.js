@@ -466,6 +466,7 @@ export class FileSelectDataFile {
         }
 
         this._dispatch('imageMetaSet', this._id);
+        // this._dispatch('imgSrcSet', this._id);
 
         if (this._newFile === true && this._processing === false) {
           this._newFile = false;
@@ -530,7 +531,9 @@ export class FileSelectDataFile {
    * @returns {boolean}
    */
   async process() {
-    if (this._isImage === true && this._processing === false &&  this._imgProcessor !== null) {
+    if (this._isImage === true && this._ext !== 'svg'
+      && this._processing === false &&  this._imgProcessor !== null
+    ) {
       this._processing = true;
 
       await this._imgProcessor.process(this);
