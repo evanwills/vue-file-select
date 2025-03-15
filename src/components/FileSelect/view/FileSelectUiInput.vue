@@ -67,7 +67,7 @@ const listChange = (type, data) => {
 const setWatcher = () => {
   if (init.value === false && props.fileList !== null) {
     init.value = true;
-    props.fileList.addWatcher(listChange, `${componentName}-${props.id}`);
+    props.fileList.addWatcher('processCount', listChange, `${componentName}-${props.id}`);
   }
 };
 

@@ -65,7 +65,7 @@ import { getAllowedTypes } from '../logic/file-select-utils';
 import FileSelectUiFileList from './FileSelectUiFileList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import FileSelectUiPreview from './FileSelectUiPreview.vue';
-import ModalDialogue from '../../../ModalDialogue.vue';
+import ModalDialogue from '../../ModalDialogue.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -304,10 +304,10 @@ const initFiles = () => {
     },
   );
 
-  selectedFiles.value.addedWatcher('added', addedWatcher, props.id);
-  selectedFiles.value.addedWatcher('noResize', noResizeWatcher, props.id);
-  selectedFiles.value.addedWatcher('notadded', notAddedWatcher, props.id);
-  selectedFiles.value.addedWatcher('toBeAdded', toBeAddedWatcher, props.id);
+  selectedFiles.value.addWatcher('added', addedWatcher, props.id);
+  selectedFiles.value.addWatcher('noResize', noResizeWatcher, props.id);
+  selectedFiles.value.addWatcher('notadded', notAddedWatcher, props.id);
+  selectedFiles.value.addWatcher('toBeAdded', toBeAddedWatcher, props.id);
   console.groupEnd();
 };
 

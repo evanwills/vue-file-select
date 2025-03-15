@@ -559,8 +559,9 @@ export class FileSelectFileList {
     this._processingCount = 0;
     this._log = [];
 
+    const { logging, noResize, ...tmpConfig } = config;
+
     try {
-      const { logging, noResize, ...tmpConfig } = config;
       this._setConfig(tmpConfig);
     } catch (e) {
       throw Error(e.message);
