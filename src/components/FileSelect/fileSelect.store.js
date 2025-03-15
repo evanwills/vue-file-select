@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import FileSelectDataFile from "./logic/FileSelectFileData.class";
+import FileSelectData from "./logic/FileSelectData.class";
 import { computed } from "vue";
 
 const defaultConfig = {
@@ -99,7 +99,7 @@ export const fileSelect = (customConfig = {}) => () => {
 
   /**
    *
-   * @param {FileSelectDataFile} file
+   * @param {FileSelectData} file
    */
   const addFile = (file) => {
     let done = false;

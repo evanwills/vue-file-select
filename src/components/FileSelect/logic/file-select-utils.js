@@ -98,7 +98,7 @@ export const isNum = (input, min = null, max = null) => !(typeof input !== 'numb
  * @param {File} file
  * @returns {string}
  */
-export const getFileExtension = (file) => file.name.replace(/^.*?\.(?=[a-z\d]+$)/i, '');
+export const getFileExtension = (file) => file.name.replace(/^.*?\.(?=[a-z\d]+$)/i, '').toLowerCase();
 
 const makeExt = (str) => str.replace(/[^a-z0-9]+/, '').substring(0, 4);
 
@@ -629,7 +629,7 @@ export const formatNum = (input) => { // eslint-disable-line arrow-body-style
 
 export const getFileReaderOnload = (context) => (e) => {
   context.src = e.target.result;
-  context._dispatch('imgSrcSet', context.id);
+  context._dispatch('imageSrcSet', context.id);
 };
 
 export const isFileDataObj = (input) => {

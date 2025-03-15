@@ -11,8 +11,9 @@ import {
 } from './file-select-utils';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
 import { FileSelectCommunicator } from './FileSelectCommunicator.class';
+import { getImageSrc } from './file-select-File-utils';
 
-export class FileSelectDataFile {
+export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Define static properties
 
@@ -42,6 +43,8 @@ export class FileSelectDataFile {
 
   _name;
 
+  _newFile = false;
+
   _ogName;
 
   _ogSize;
@@ -68,6 +71,50 @@ export class FileSelectDataFile {
   _comms = null;
 
   //  END:  Define instance properties
+  // ----------------------------------------------------------------
+  // START: Constructor method
+
+  constructor(file, config = null, comms = null, imgProcessor = null) {
+    if (file instanceof File === false) {
+      throw new Error(
+        'FileSelectData constructor expects first parameter to '
+        + `be a File object. ${typeof file} given`,
+      );
+    }
+
+    this._comms = null;
+    this._file = file;
+    this._id = nanoid(8);
+    this._imgProcessor = imgProcessor;
+    this._invalid = false;
+    this._metaWaiting = false;
+    this._newFile = true;
+    this._ok = true;
+    this._position = -1;
+    this._processing = false;
+    this._replaceCount = 0;
+    this._src = '';
+    this._tooLarge = null;
+
+    this._setConfig(config);
+
+    if (comms !== null && comms instanceof FileSelectCommunicator === true) {
+      this._comms = comms;
+    }
+
+    this._setFileMeta(file, true);
+
+    if (this._name !== this._ogName) {
+      this._dispatch('renamed', this._id);
+    }
+
+    if (this._isImage) {
+      this._setImageSrc(file);
+      this._setImageMeta(true);
+    }
+  }
+
+  //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
@@ -110,84 +157,17 @@ export class FileSelectDataFile {
 
   //  END:  Static getter & setter methods
   // ----------------------------------------------------------------
-  // START: Constructor method
-
-  constructor(file, config = null, comms = null, imgProcessor = null) {
-    if (file instanceof File === false) {
-      throw new Error(
-        'FileSelectDataFile constructor expects first parameter to '
-        + `be a File object. ${typeof file} given`,
-      );
-    }
-
-    this._comms = null;
-    this._ext = getFileExtension(file);
-    this._file = file;
-    this._id = nanoid(8);
-    this._imgProcessor = imgProcessor;
-    this._invalid = false;
-    this._isImage = fileIsImage(file);
-    this._metaWaiting = false;
-    this._mime = file.type;
-    this._name = getUniqueFileName(file.name, this._id);
-    this._ogName = file.name;
-    this._ogSize = file.size;
-    this._ok = true;
-    this._position = -1;
-    this._previousName = file.name;
-    this._processing = false;
-    this._replaceCount = 0;
-    this._src = '';
-    this._tooLarge = null;
-
-    this._setConfig(config);
-
-    this._setOK();
-
-    if (comms !== null && comms instanceof FileSelectCommunicator === true) {
-      this._comms = comms;
-    }
-
-    if (this._name !== this._ogName) {
-      this._dispatch('renamed', this._id);
-    }
-
-    if (this._isImage) {
-      this._getImgSrc(file);
-      this.setImageMetadata(true);
-      this._triggerProcessImage();
-    }
-  }
-
-  //  END:  Constructor methods
-  // ----------------------------------------------------------------
   // START: Private method
 
-  _triggerProcessImage() {
-    if (this._isImage) {
-      const context = this;
-      const action = 'imageMetaSet';
-
-      this._comms.addWatcher(
-        action,
-        () => {
-          context.process();
-          context._comms.removeWatcher(action, this._id);
-        },
-        this._id,
-      )
+  async _setImageSrc() {
+    if (this._isImage && this._ext !== 'svg') {
+      try {
+        this._src = await getImageSrc(this._file);
+        this._dispatch('imageSrcSet', this._id);
+      } catch (error) {
+        throw Error(error);
+      }
     }
-  }
-
-  _getImgSrc(file) {
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      this._src = e.target.result;
-      this._dispatch('imgSrcSet', this._id);
-    };
-
-    reader.readAsDataURL(file);
   }
 
   _dispatch(type, data) {
@@ -200,8 +180,8 @@ export class FileSelectDataFile {
     // Preset config with default values
 
     this._config = {
-      allowedTypes: FileSelectDataFile._defaultAllowed,
-      maxSingleSize: FileSelectDataFile._maxSingleSize,
+      allowedTypes: FileSelectData._defaultAllowed,
+      maxSingleSize: FileSelectData._maxSingleSize,
       maxImgPx: 1500,
     };
 
@@ -219,6 +199,106 @@ export class FileSelectDataFile {
     } else if (this.tooHeavy === true) {
       this._ok = false;
     }
+  }
+
+  _setFileMeta(setOg = false) {
+    if (setOg === true) {
+      this._ogName = this._file.name;
+      this._previousName = this._file.name;
+      this._ogSize = this._file.size
+    } else {
+      this._previousName = this._name
+    }
+    this._name = getUniqueFileName(this._file.name, this._id);
+    this._ext = getFileExtension(this._file);
+    this._isImage = fileIsImage(this._file);
+    this._mime = this._file.type;
+
+    this._setOK();
+  }
+
+  /**
+   * If a the file is new and is an image image
+   *
+   *
+   * @returns {boolean}
+   */
+  async _processImage() {
+    if (this._newFile === true && this._imgProcessor !== null
+      && this._isImage === true && this._ext !== 'svg'
+      && this._processing === false
+    ) {
+      this._newFile = false;
+      this._processing = true;
+      this._dispatch('imageProcessingStart', this._id);
+
+      this._file = await this._imgProcessor.process(this, this.width, this.width);
+
+      this._setFileMeta(this._file);
+
+      if (this._ogSize !== this._file.size) {
+        this._dispatch('imageResized', this._id);
+        await this._setImageSrc();
+        await this._setImageMeta(true);
+      }
+
+      this._processing = false;
+      this._dispatch('imageProcessingEnd', this._id);
+
+      return true;
+    }
+
+    this._newFile = false;
+
+    return false;
+  }
+
+  _setImageMetaInner(result) {
+    this._metaWaiting = false;
+
+    this._imgMeta = (this._imgMeta === null)
+      // set the image meta object from scratch
+      ? { ...result }
+      // merge the latest data into the image meata object
+      : {
+        ...this._imgMeta,
+        ...result,
+      };
+
+    this._tooLarge = (result.height > this._config.maxImgPx
+      || result.width > this._config.maxImgPx);
+
+    if (force === false || typeof this._imgMeta.ogHeight !== 'number') {
+      // Only set the original height & width the first time this
+      // is called
+      this._imgMeta.ogHeight = result.height;
+      this._imgMeta.ogWidth = result.width;
+    } else if (force === true && this._tooLarge === true) {
+      this._ok = false;
+    }
+
+    this._dispatch('imageMetaSet', this._id);
+    // this._dispatch('imageSrcSet', this._id);
+  }
+
+  _setImageMeta(force = false) {
+    if (this._isImage === true && this._metaWaiting === false
+      && (this._imgMeta === null || force === true)
+    ) {
+      this._metaWaiting = true;
+
+      return getImageMetadata(this._src)
+        .then(this._setImageMetaInner)
+        .then(this._processImage)
+        .catch((error) => {
+          console.group('FileSelectData._setImageMeta()');
+          console.error('error:', error.message);
+          console.groupEnd();
+          throw Error(error);
+        });
+    }
+
+    return false;
   }
 
   //  END:  Private methods
@@ -241,17 +321,16 @@ export class FileSelectDataFile {
    * @param {File} file
    */
   set file(file) {
-    if (file instanceof File && file !== this._file) {
-      this._file = file;
-      this._ext = getFileExtension(file);
-      this._isImage = fileIsImage(file);
-      this._mime = file.type;
-      this._replaceCount += 1;
-      this._setOK();
-      this.setImageMetadata(true);
-      this._triggerProcessImage();
-      this._dispatch('replaced', this._id);
-    }
+    throw new Error(
+      'FileSelectData does not allow file to be replaced manually. '
+      + 'Use `replaceFile()` method instead',
+    );
+  }
+
+  get height() {
+    return (typeof this._isImage?.height === 'number')
+      ? this._imgMeta.height
+      : 0;
   }
 
   get id() {
@@ -306,8 +385,20 @@ export class FileSelectDataFile {
     }
   }
 
+  get ogHeight() {
+    return (typeof this._isImage?.ogHeight === 'number')
+      ? this._imgMeta.ogHeight
+      : 0;
+  }
+
   get ogName() {
     return this._ogName;
+  }
+
+  get ogWidth() {
+    return (typeof this._isImage?.ogWidth === 'number')
+        ? this._imgMeta.ogWidth
+        : 0;
   }
 
   get ogSize() {
@@ -384,93 +475,18 @@ export class FileSelectDataFile {
     return this._tooLarge;
   }
 
+  get width() {
+    return (typeof this._isImage?.height === 'number')
+      ? this._imgMeta.width
+      : 0;
+  }
+
   //  END:  Public getter & setter methods
   // ----------------------------------------------------------------
   // START: Public utility methods
 
   isMatch(id, name = '') {
     return (this._id === id || this._name === name);
-  }
-
-  async height() {
-    if (this._isImage) {
-      return (this._imgMeta !== null)
-        ? this._imgMeta.height
-        : 0;
-    }
-
-    return 0;
-  }
-
-  async width() {
-    if (this._isImage) {
-      return (this._imgMeta !== null)
-        ? this._imgMeta.width
-        : 0;
-    }
-
-    return 0;
-  }
-
-  async ogHeight() {
-    if (this._isImage) {
-      return (this._imgMeta !== null)
-        ? this._imgMeta.ogHeight
-        : 0;
-    }
-
-    return 0;
-  }
-
-  async ogWidth() {
-    if (this._isImage) {
-      return (this._imgMeta !== null)
-        ? this._imgMeta.ogWidth
-        : 0;
-    }
-
-    return 0;
-  }
-
-  setImageMetadata(force = false) {
-    if (this._isImage === true && this._metaWaiting === false
-      && (this._imgMeta === null || force === true)
-    ) {
-      this._metaWaiting = true;
-
-      return getImageMetadata(this._file).then((result) => {
-        this._metaWaiting = false;
-
-        this._imgMeta = (this._imgMeta === null)
-          // set the image meta object from scratch
-          ? { ...result }
-          // merge the latest data into the image meata object
-          : {
-            ...this._imgMeta,
-            ...result,
-          };
-
-        this._tooLarge = (result.height > this._config.maxImgPx
-          || result.width > this._config.maxImgPx);
-
-        if (force === false || typeof this._imgMeta.ogHeight !== 'number') {
-          // Only set the original height & width the first time this
-          // is called
-          this._imgMeta.ogHeight = result.height;
-          this._imgMeta.ogWidth = result.width;
-        } else if (force === true && this._tooLarge === true) {
-          this._ok = false;
-        }
-
-        this._dispatch('imageMetaSet', this._id);
-
-        if (this._processing === false) {
-          this.process();
-        }
-      });
-    }
-
-    return false;
   }
 
   /**
@@ -514,29 +530,28 @@ export class FileSelectDataFile {
       : false;
   }
 
-  resetImgSrc() {
-    this._getImgSrc(this._file);
+  async resetImgSrc() {
+    await this._setImageSrc(this._file);
+    return this._src;
   }
 
-  /**
-   * Process image
-   *
-   * @param {ImageProcessor|null} imgProcessor
-   *
-   * @returns {boolean}
-   */
-  async process() {
-    if (this._isImage === true && this._processing === false &&  this._imgProcessor !== null) {
-      this._processing = true;
+  async replaceFile(file) {
+    if (file instanceof File === false) {
+      throw new Error(
+        'FileSelectFileData.replaceFile expects only argument to '
+        + 'be a `File` object',
+      );
+    }
 
-      await this._imgProcessor.process(this);
+    if (file !== this._file) {
+      this._newFile = true;
+      this.file = file;
+      this._replaceCount += 1;
 
-      if (this._ogSize !== this._file.size) {
-        this._getImgSrc(this._file);
-        this.setImageMetadata(true);
-      }
+      this._setFileMeta(this._newFile);
 
-      this._processing = false;
+      await this._setImageMeta(true);
+      this._dispatch('replaced', this._id);
 
       return true;
     }
@@ -548,4 +563,4 @@ export class FileSelectDataFile {
   // ----------------------------------------------------------------
 }
 
-export default FileSelectDataFile;
+export default FileSelectData;

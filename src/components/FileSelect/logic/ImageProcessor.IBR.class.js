@@ -43,35 +43,20 @@ export class IBRimageProcessor extends ImageProcessor {
    * Get a callback function to pass to `ImageBlobReduce.toBlob().then()`
    * to handle successful resizing of an image
    *
-   * @param {FileSelectDataFile} fileData File data object currently being
+   * @param {FileSelectData} fileData File data object currently being
    *                                  processed
    * @returns {Function<{Blob}}}
    */
-  _processImageBlobThen(fileData) {
+  _processImageBlobThen(file) {
     return (blob) => {
-      const tmp = new File(
+      return new File(
         [blob],
-        fileData.name,
+        file.name,
         {
           type: blob.type,
-          lastModified: fileData.lastModified,
+          lastModified: file.lastModified,
         },
       );
-
-      // sometimes the resized image ends up being larger than the
-      // original because the original was better optimised.
-      // Only replace the image if the new one is smaller that the
-      // old one.
-      if (tmp.size < fileData.size) {
-        fileData.file = tmp; // eslint-disable-line no-param-reassign
-        fileData.setImageMetadata(true);
-        fileData.resetImgSrc();
-      }
-
-      fileData.processing = false; // eslint-disable-line no-param-reassign
-
-      this._dispatch('endImgProcessing', fileData);
-      return fileData;
     };
   }
 
@@ -98,12 +83,9 @@ export class IBRimageProcessor extends ImageProcessor {
     };
   }
 
-  async _processInner(fileData, _resizeRatio) { // eslint-disable-line no-unused-vars
-    this._dispatch('startprocessing', fileData);
-    fileData.processing = true; // eslint-disable-line no-param-reassign
-
+  async _processInner(file, _resizeRatio) { // eslint-disable-line no-unused-vars
     return IBRimageProcessor._reducer.toBlob(
-      fileData.file,
+      file,
       { max: this._config.maxImgPx },
     ).then(this._processImageBlobThen(fileData))
       .catch(this._processImageBlobCatch(fileData));

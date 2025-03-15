@@ -39,7 +39,7 @@ import {
   ref,
   watch,
 } from 'vue';
-import { FileSelectFileList } from '../logic/FileSelectFileList.class';
+import { FileSelectList } from '../logic/FileSelectList.class';
 import { formatNum } from '../logic/file-select-utils';
 import { getEpre } from '../../../utils/general-utils';
 import FileSelectUiInput from './FileSelectUiInput.vue';
@@ -93,7 +93,7 @@ const replaceID = computed(() => `${props.id}--replace`);
 // START: Computed state
 
 const isFileList = computed(
-  () => (props.fileList !== null && props.fileList instanceof FileSelectFileList),
+  () => (props.fileList !== null && props.fileList instanceof FileSelectList),
 );
 
 //  END:  Computed state
@@ -125,7 +125,7 @@ const setFile = async (id) => {
 
 const forMe = (id) => (file.value !== null && data === fileID.value);
 
-const imgSrcSetWatcher = (data) => {
+const imageSrcSetWatcher = (data) => {
   if (forMe() === true) {
     src.value = file.value.src;
     fileName.value = file.value.name;
@@ -152,7 +152,7 @@ const setWatcher = () => {
 
     props.fileList.addWatcher('endprocessingimage', endProcessingImageWatcher, props.id);
     props.fileList.addWatcher('imageMetaSet', imageMetaSetWatcher, props.id);
-    props.fileList.addWatcher('imgSrcSet', imgSrcSetWatcher, props.id);
+    props.fileList.addWatcher('imageSrcSet', imageSrcSetWatcher, props.id);
   }
 };
 
@@ -203,10 +203,10 @@ onBeforeMount(() => {
 });
 
 onUnmounted(() => {
-  const watchers = ['endprocessingimage', 'imageMetaSet', 'imgSrcSet'];
+  const watchers = ['endprocessingimage', 'imageMetaSet', 'imageSrcSet'];
 
   for (const event of watchers) {
-    props.fileList.removeWatcher('imgSrcSet', props.id);
+    props.fileList.removeWatcher('imageSrcSet', props.id);
   }
 })
 

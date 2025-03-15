@@ -11,7 +11,7 @@ import {
   rewriteError,
 } from './file-select-utils';
 import { isObj } from '../../../utils/data-utils';
-import FileSelectFileData from './FileSelectFileData.class';
+import FileSelectFileData from './FileSelectData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
 // import ImageProcessor from ./ImageProcessor.photon.class
 import { FileSelectCommunicator } from './FileSelectCommunicator.class';
@@ -307,7 +307,7 @@ import { FileSelectCommunicator } from './FileSelectCommunicator.class';
  * @method setMaxTotalSize Set the maximum total byte size allowed
  *                      for all files
  */
-export class FileSelectFileList {
+export class FileSelectList {
   // ----------------------------------------------------------------
   // START: Define static properties
 
@@ -575,10 +575,10 @@ export class FileSelectFileList {
       this._comms.addWatcher(
         'imageMetaSet',
         this._handleImageMeta(),
-        'FileSelectFileList--image-resize',
+        'FileSelectList--image-resize',
       );
     } else if (noResize === true) {
-      this._comms.dispatch('noResize', true, 'FileSelectFileList');
+      this._comms.dispatch('noResize', true, 'FileSelectList');
     }
   }
 
@@ -708,7 +708,7 @@ export class FileSelectFileList {
   }
 
   _dispatch(type, data) {
-    this._comms.dispatch(type, data, 'FileSelectFileList');
+    this._comms.dispatch(type, data, 'FileSelectList');
   }
 
   /**
@@ -862,11 +862,11 @@ export class FileSelectFileList {
       allowedTypes: FileSelectFileData.getDefaultAllowed(),
       greyScale: ImageProcessor.getGreyscale(),
       jpegCompression: ImageProcessor.getJpegCompression(),
-      maxFileCount: FileSelectFileList.#maxFileCount,
+      maxFileCount: FileSelectList.#maxFileCount,
       maxImgPx: ImageProcessor.getMaxImgPx(),
       maxSingleSize: FileSelectFileData.getMaxSingleSize(),
-      maxTotalSize: FileSelectFileList.#maxTotalSize,
-      omitInvalid: FileSelectFileList.#omitInvalid,
+      maxTotalSize: FileSelectList.#maxTotalSize,
+      omitInvalid: FileSelectList.#omitInvalid,
       messages: {
         noResize: 'This browser does not support image resizing. '
           + 'Please use a supported browser like Chrome or Firefox.',
@@ -942,14 +942,14 @@ export class FileSelectFileList {
   getMessage(type, fileID = '') {
     if (typeof type !== 'string' || type.trim() === '') {
       throw new Error(
-        'FileSelectFileList.getMessage() expects only parameter '
+        'FileSelectList.getMessage() expects only parameter '
         + 'type to be a non-empty string',
       );
     }
 
     if (typeof this._config.messages[type] !== 'string') {
       throw new Error(
-        'FileSelectFileList.getMessage() expects only parameter '
+        'FileSelectList.getMessage() expects only parameter '
         + 'type to be a string matching one of the following types: '
         ,
       );
@@ -1524,7 +1524,7 @@ export class FileSelectFileList {
     const tmp = this.getFile(id);
 
     if (tmp !== null) {
-      tmp.file = file;
+      tmp.replace(file);
 
       this._processSingleFileInner(tmp);
       this._addBadFile(id);
@@ -1546,4 +1546,4 @@ export class FileSelectFileList {
   // ----------------------------------------------------------------
 }
 
-export default FileSelectFileList;
+export default FileSelectList;
