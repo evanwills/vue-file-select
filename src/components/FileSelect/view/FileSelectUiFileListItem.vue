@@ -217,42 +217,43 @@ const emitMoveToEnd = () => {
 const setFileMeta = async () => {
   size.value = props.data.size;
   if (props.data.isImage === true) {
-    width.value = await props.data.width();
-    height.value = await props.data.height();
-    ogWidth.value = await props.data.ogWidth();
-    ogHeight.value = await props.data.ogHeight();
+    width.value = props.data.width;
+    height.value = props.data.height;
+    ogWidth.value = props.data.ogWidth;
+    ogHeight.value = props.data.ogHeight;
   }
 };
 
-const handleFileChanges = async (type, data) => {
+const handleRenameReplace = async (data) => {
   if (data === props.data.id) {
-    switch (type) { // eslint-disable-line default-case
-      case 'imageSrcSet':
-        imgSrc.value = props.data.src;
-        processing.value = props.data.processing;
-        await nextTick();
-        imgSrcReset.value = Date.now();
-        break;
+    _name.value = props.data.name;
+  }
+};
 
-      case 'renamed':
-        _name.value = props.data.name;
-        break;
+const handleEndProcessingImage = async (data) => {
+  if (data === props.data.id) {
+    processing.value = props.data.processing;
+  }
+};
 
-      case 'resized':
-      case 'imageMetaSet':
-        setFileMeta();
-        break;
+const handleImageMetaSet = async (data) => {
+  if (data === props.data.id) {
+    _name.value = props.data.name;
+  }
+};
 
-      case 'replaced':
-        _name.value = props.data.name;
+const handleRenamed = async (data) => {
+  if (data === props.data.id) {
+    _name.value = props.data.name;
+  }
+};
 
-        setFileMeta();
-        break;
-
-      case 'endprocessingimage':
-        processing.value = props.data.processing;
-        break;
-    }
+const handleImageSrcSet = async (data) => {
+  if (data === props.data.id) {
+    imgSrc.value = props.data.src;
+    processing.value = props.data.processing;
+    await nextTick();
+    imgSrcReset.value = Date.now();
   }
 };
 
@@ -271,8 +272,12 @@ onBeforeMount(() => {
       processing.value = props.data.processing;
     }
     setFileMeta();
+    const _id = `listItem--${props.id}`;
 
-    props.data.addWatcher(handleFileChanges, `listItem--${props.id}`);
+    props.data.addWatcher('endprocessingimage', _id, handleEndProcessingImage);
+    props.data.addWatcher(['imageMetaSet', 'resized'], _id, handleImageMetaSet);
+    props.data.addWatcher('imageSrcSet', _id, handleImageSrcSet);
+    props.data.addWatcher(['renamed', 'replaced'], _id, handleRenameReplace);
   }
 });
 

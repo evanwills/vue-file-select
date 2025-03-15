@@ -103,10 +103,10 @@ const isFileList = computed(
 const setMeta = async () => {
   size.value = formatNum(file.value.size);
   ogSize.value = formatNum(file.value.ogSize);
-  width.value = await file.value.width();
-  ogWidth.value = await file.value.ogWidth();
-  height.value = await file.value.height();
-  ogHeight.value = await file.value.ogHeight();
+  width.value = file.value.width;
+  ogWidth.value = file.value.ogWidth;
+  height.value = file.value.height;
+  ogHeight.value = file.value.ogHeight;
 };
 
 const setFile = async (id) => {
@@ -123,10 +123,10 @@ const setFile = async (id) => {
   }
 };
 
-const forMe = (id) => (file.value !== null && data === fileID.value);
+const forMe = (id) => (file.value !== null && id === fileID.value);
 
 const imageSrcSetWatcher = (data) => {
-  if (forMe() === true) {
+  if (forMe(data) === true) {
     src.value = file.value.src;
     fileName.value = file.value.name;
     isProcessing.value = file.value.processing;
@@ -134,14 +134,14 @@ const imageSrcSetWatcher = (data) => {
 };
 
 const endProcessingImageWatcher = (data) => {
-  if (forMe() === true) {
+  if (forMe(data) === true) {
     isProcessing.value = false;
     setMeta();
   }
 };
 
 const imageMetaSetWatcher = (data) => {
-  if (forMe() === true) {
+  if (forMe(data) === true) {
     setMeta();
   }
 };
@@ -150,9 +150,9 @@ const setWatcher = () => {
   if (isFileList.value === true && watcherSet.value === false) {
     watcherSet.value = true;
 
-    props.fileList.addWatcher('endprocessingimage', endProcessingImageWatcher, props.id);
-    props.fileList.addWatcher('imageMetaSet', imageMetaSetWatcher, props.id);
-    props.fileList.addWatcher('imageSrcSet', imageSrcSetWatcher, props.id);
+    props.fileList.addWatcher('endprocessingimage', props.id, endProcessingImageWatcher);
+    props.fileList.addWatcher('imageMetaSet', props.id, imageMetaSetWatcher);
+    props.fileList.addWatcher('imageSrcSet', props.id, imageSrcSetWatcher);
   }
 };
 

@@ -572,11 +572,6 @@ export class FileSelectList {
     if (this._canResize === true) {
       this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
       this._imgProcessor.forceInit();
-      this._comms.addWatcher(
-        'imageMetaSet',
-        this._handleImageMeta(),
-        'FileSelectList--image-resize',
-      );
     } else if (noResize === true) {
       this._comms.dispatch('noResize', true, 'FileSelectList');
     }
@@ -609,18 +604,6 @@ export class FileSelectList {
    */
   _deleteBadFile(id) {
     this._badFiles = this._badFiles.filter((str) => str !== id);
-  }
-
-  _handleImageMeta() { // eslint-disable-line class-methods-use-this
-    const context = this;
-
-    return (data) => {
-      const tmp = context.getFile(data);
-
-      if (tmp !== null) {
-        context._processImage(tmp);
-      }
-    };
   }
 
   /**
@@ -885,34 +868,6 @@ export class FileSelectList {
       console.error('FileSelectFileData._setConfig():', error.message);
       throw Error(error.message);
     }
-  }
-
-  /**
-   * Add watcher to process image when a replacement image is added
-   * to the list.
-   *
-   * > __Note:__ When a file is replaced normal image processing
-   * >           doesn't occur adding a temporary watcher allows us
-   * >           to wait for the necessary things to happen
-   * >           before we start resizing the image.
-   *
-   * @param {FileSelectFileData} fileData file data object
-   *
-   * @returns {void}
-   */
-  _setTempImageWatcher(fileData) {
-    const comms = this._comms;
-    const processor = this._imgProcessor;
-
-    this._comms.addWatcher(
-      (type, data) => {
-        if (type === 'imageMetaSet' && data === fileData.id) {
-          fileData.process(processor);
-          comms.removeWatcher(fileData.id);
-        }
-      },
-      fileData.id,
-    );
   }
 
   //  END:  private methods
@@ -1266,9 +1221,9 @@ export class FileSelectList {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addWatcher(event, watcher, id, replace = false) {
+  addWatcher(event, id, watcher, replace = false) {
     try {
-      this._comms.addWatcher(event, watcher, id, replace);
+      this._comms.addWatcher(event, id, watcher, replace);
     } catch (error) {
       console.error('error.message:', error.message);
       // throw Error error message
@@ -1528,10 +1483,6 @@ export class FileSelectList {
 
       this._processSingleFileInner(tmp);
       this._addBadFile(id);
-
-      if (tmp.isImage === true) {
-        this._setTempImageWatcher(tmp);
-      }
 
       return true;
     }

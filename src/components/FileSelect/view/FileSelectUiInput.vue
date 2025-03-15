@@ -57,17 +57,10 @@ const allowMulti = ref(true);
 // ------------------------------------------------------------------
 // START: Helper methods
 
-const listChange = (type, data) => {
-  if (type === 'processCount' && data === 0) {
+const handleProcessEnd = (data) => {
+  if (data === 0) {
     fileSelectUiInput.value = '';
     allowMulti.value = (props.replaceId === '' && props.fileList.allowMultiple());
-  }
-};
-
-const setWatcher = () => {
-  if (init.value === false && props.fileList !== null) {
-    init.value = true;
-    props.fileList.addWatcher('processCount', listChange, `${componentName}-${props.id}`);
   }
 };
 
@@ -103,7 +96,15 @@ onBeforeMount(() => {
   if (ePre.value === null) {
     ePre.value = getEpre(componentName, props.id);
     allowMulti.value = (props.replaceId === '' && props.fileList.allowMultiple());
-    setWatcher();
+
+    if (init.value === false && props.fileList !== null) {
+      init.value = true;
+      props.fileList.addWatcher(
+        'processCount',
+        `${componentName}-${props.id}`,
+        handleProcessEnd,
+      );
+    }
   }
 });
 </script>

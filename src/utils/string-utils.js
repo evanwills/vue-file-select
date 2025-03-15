@@ -34,11 +34,7 @@ export const getProseOverrides = (input, overrides) => {
 };
 
 export const stripPinLi = (input) => {
-  console.group('stripPinLi()');
-  console.log('input:', input);
   const regex = /(?:(<li(?: [^>]+)?>)\s*<p(?: [^>]+)?>|<\/p>\s*(<\/li>))/isg;
-  console.log('regex:', regex);
-  console.log('regex.replace(regex, "$1$2"):', input.replace(regex, '$1$2'));
 
   return input.replace(regex, '$1$2');
 };

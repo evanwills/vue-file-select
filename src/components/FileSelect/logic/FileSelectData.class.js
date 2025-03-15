@@ -220,7 +220,6 @@ export class FileSelectData {
   /**
    * If a the file is new and is an image image
    *
-   *
    * @returns {boolean}
    */
   async _processImage() {
@@ -228,29 +227,31 @@ export class FileSelectData {
       && this._isImage === true && this._ext !== 'svg'
       && this._processing === false
     ) {
-      this._newFile = false;
-      this._processing = true;
-      this._dispatch('imageProcessingStart', this._id);
+      return new Promise(async (resolve, reject) => {
+        this._newFile = false;
+        this._processing = true;
+        this._dispatch('imageProcessingStart', this._id);
 
-      this._file = await this._imgProcessor.process(this, this.width, this.width);
+        this._file = await this._imgProcessor.process(this, this.width, this.height);
 
-      this._setFileMeta(this._file);
+        this._setFileMeta(this._file);
 
-      if (this._ogSize !== this._file.size) {
-        this._dispatch('imageResized', this._id);
-        await this._setImageSrc();
-        await this._setImageMeta(true);
-      }
+        if (this._ogSize !== this._file.size) {
+          this._dispatch('imageResized', this._id);
+          await this._setImageSrc();
+          await this._setImageMeta(true);
+        }
 
-      this._processing = false;
-      this._dispatch('imageProcessingEnd', this._id);
+        this._processing = false;
+        this._dispatch('imageProcessingEnd', this._id);
 
-      return true;
+        resolve(true);
+      });
     }
 
     this._newFile = false;
 
-    return false;
+    return Promise.resolve(false);
   }
 
   _setImageMetaInner(result) {
@@ -350,8 +351,8 @@ export class FileSelectData {
   }
 
   get lastModified() {
-    return (typeof this._file.lastModifiedDate !== 'undefined')
-      ? this._file.lastModifiedDate
+    return (typeof this._file.lastModified !== 'undefined')
+      ? this._file.lastModified
       : -1;
   }
 
@@ -386,7 +387,7 @@ export class FileSelectData {
   }
 
   get ogHeight() {
-    return (typeof this._isImage?.ogHeight === 'number')
+    return (typeof this._imgMeta?.ogHeight === 'number')
       ? this._imgMeta.ogHeight
       : 0;
   }
@@ -396,7 +397,7 @@ export class FileSelectData {
   }
 
   get ogWidth() {
-    return (typeof this._isImage?.ogWidth === 'number')
+    return (typeof this._imgMeta?.ogWidth === 'number')
         ? this._imgMeta.ogWidth
         : 0;
   }
@@ -505,10 +506,10 @@ export class FileSelectData {
    * @throws {Error} If a dispatcher with the same ID already exists
    *                 and `replace` is FALSE
    */
-  addWatcher(action, watcher, id, replace = false) {
+  addWatcher(action, id, watcher, replace = false) {
     if (this._comms !== null) {
       try {
-        this._comms.addWatcher(action, watcher, id, replace);
+        this._comms.addWatcher(action, id, watcher, replace);
       } catch (error) {
         console.error(error.message);
         // throw Error error message
@@ -545,7 +546,7 @@ export class FileSelectData {
 
     if (file !== this._file) {
       this._newFile = true;
-      this.file = file;
+      this._file = file;
       this._replaceCount += 1;
 
       this._setFileMeta(this._newFile);

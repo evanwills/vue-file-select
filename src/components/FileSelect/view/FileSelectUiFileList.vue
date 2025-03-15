@@ -73,6 +73,7 @@
 import {
   computed,
   onBeforeMount,
+  onBeforeUnmount,
   onUnmounted,
   onUpdated,
   ref,
@@ -111,7 +112,6 @@ const ePre = ref(null);
 const init = ref(false);
 const focusIndex = ref(0);
 const badFile = ref([]);
-const watchers = ref([]);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -173,6 +173,8 @@ const processCountWatcher = (data) => {
 
 const setWatcher = () => {
   if (init.value === false && props.fileList !== null) {
+    init.value = true;
+
     const actions = [
       'completed',
       'moved',
@@ -181,24 +183,11 @@ const setWatcher = () => {
       'replaced',
     ];
 
-    init.value = true;
-
-    for (const key of actions) {
-      props.fileList.addWatcher(key, resetFiles, props.id);
-    }
-
-    props.fileList.addWatcher('added', addedWatcher, props.id);
-    props.fileList.addWatcher('deleted', deletedWatcher, props.id);
-    props.fileList.addWatcher('notadded', notAddedWatcher, props.id);
-    props.fileList.addWatcher('processCount', processCountWatcher, props.id);
-
-    watchers.value = [
-      ...actions,
-      'added',
-      'deleted',
-      'notadded',
-      'processCount',
-    ];
+    props.fileList.addWatcher(actions, props.id, resetFiles);
+    props.fileList.addWatcher('added', props.id, addedWatcher);
+    props.fileList.addWatcher('deleted', props.id, deletedWatcher);
+    props.fileList.addWatcher('notadded', props.id, notAddedWatcher);
+    props.fileList.addWatcher('processCount', props.id, processCountWatcher);
   }
 };
 
@@ -247,7 +236,7 @@ onUpdated(() => {
   setWatcher();
 });
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   props.fileList.removeWatchersById(props.id);
 });
 

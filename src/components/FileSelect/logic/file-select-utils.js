@@ -124,7 +124,6 @@ const prepTypeArray = (types) => {
 
   if (t === 'undefined' || isObj(types[0]) === false) {
     console.error('prepareTypesArray() types[0] is undefined');
-    console.log('types:', types);
     throw new Error('prepareTypesArray() expects types[0] to be an object');
   }
 

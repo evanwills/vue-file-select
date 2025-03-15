@@ -9,7 +9,7 @@ const testTextFile = new File(
   'testTextFile.txt',
   {
     type: 'text/plain',
-    lastModified: when + 10,
+    lastModified: when + 11111,
   }
 );
 const testSvgFile = new File(
@@ -17,18 +17,27 @@ const testSvgFile = new File(
   'testTextFile.SVG',
   {
     type: 'image/svg+xml',
-    lastModified: when,
+    lastModified: 9999,
   }
 );
 
 const testPngFile = new File(
-  fs.readFileSync('./src/assets/vue.png'),
+  fs.readFileSync('./tests/mock-assets/vue.png'),
   'vue-logo.png',
   {
     type: 'image/png',
-    lastModified: when - 10,
+    lastModified: when - 8888,
   }
 );
+
+// const testJpgFile = new File(
+//   fs.readFileSync('./tests/mock-assets/20210617_164014.jpg'),
+//   '20210617_164014.jpg',
+//   {
+//     type: 'image/jpg',
+//     lastModified: when - 7777,
+//   }
+// );
 
 //  END:  mock data
 // ==============================================
@@ -144,17 +153,19 @@ test('FileSelectFileData is file data properties are updated after file is repla
     expect(tmp.ext).toBe('txt');
     expect(tmp.mime).toBe('text/plain');
     expect(tmp.size).toBe(19);
+    expect(tmp.lastModified).toBe(1741807382711);
     expect(tmp.isImage).toBe(false);
     expect(tmp.replaceCount).toBe(0);
 
-    expect(tmp.replaceFile(testSvgFile)).toThrowError();
+    tmp.replaceFile(testPngFile);
 
-    // expect(tmp.name).toBe('testTextFile.SVG');
-    // expect(tmp.previousName).toBe('testTextFile.SVG');
-    // expect(tmp.ext).toBe('svg');
-    // expect(tmp.mime).toBe('image/svg+xml');
-    // expect(tmp.size).toBe(465);
-    // expect(tmp.isImage).toBe(true);
-    // expect(tmp.replaceCount).toBe(1);
+    expect(tmp.name).toBe('vue-logo.png');
+    expect(tmp.previousName).toBe('vue-logo.png');
+    expect(tmp.ext).toBe('png');
+    expect(tmp.mime).toBe('image/png');
+    expect(tmp.size).toBe(6019);
+    expect(tmp.lastModified).toBe(1741807362712);
+    expect(tmp.isImage).toBe(true);
+    expect(tmp.replaceCount).toBe(1);
   },
 );

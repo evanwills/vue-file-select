@@ -272,14 +272,14 @@ const addedWatcher = (data) => {
 
 const noResizeWatcher = (data) => { noResize.value = (data !== false); };
 
-const toBeAddedWatcher = (data) => { previewing.value = (data === 1); };
 const notAddedWatcher = (data) => {
   previewing.value = false;
   doShowModal(fileSelectUI.value);
 };
 
+const toBeAddedWatcher = (data) => { previewing.value = (data === 1); };
+
 const initFiles = () => {
-  console.group(ePre.value('initFIles'));
   selectedFiles.value = new FileSelectList(
     fileSelectCanvas.value,
     {
@@ -304,11 +304,10 @@ const initFiles = () => {
     },
   );
 
-  selectedFiles.value.addWatcher('added', addedWatcher, props.id);
-  selectedFiles.value.addWatcher('noResize', noResizeWatcher, props.id);
-  selectedFiles.value.addWatcher('notadded', notAddedWatcher, props.id);
-  selectedFiles.value.addWatcher('toBeAdded', toBeAddedWatcher, props.id);
-  console.groupEnd();
+  selectedFiles.value.addWatcher('added', props.id, addedWatcher);
+  selectedFiles.value.addWatcher('noResize', props.id, noResizeWatcher);
+  selectedFiles.value.addWatcher('notadded', props.id, notAddedWatcher);
+  selectedFiles.value.addWatcher('toBeAdded', props.id, toBeAddedWatcher);
 };
 
 const retryInitFiles = (_initFiles, files, canvas) => () => {

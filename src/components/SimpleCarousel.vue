@@ -65,22 +65,14 @@ const round = (input) => (Math.round(input * 1000) / 1000);
 // START: Computed state
 
 const cssCustomProps = computed(() => {
-  console.group('<simple-carousel>.cssCustomProps()');
   let scItemWidth = round(100 / props.length);
   let scListWidth = (props.length * 100);
   let scTranslate = 0;
-  console.log('props.duration:', props.duration);
-  console.log('props.length:', props.length);
-  console.log('pos.value:', pos.value);
 
   if (pos.value > 0) {
     scTranslate = round(pos.value * (100 / props.length));
   }
-  console.log('scItemWidth:', scItemWidth);
-  console.log('scListWidth:', scListWidth);
-  console.log('scTranslate:', scTranslate);
 
-  console.groupEnd();
   return `--sc-list-w: ${scListWidth}%;`
     + ` --sc-item-w: ${scItemWidth}%;`
     + ` --sc-trans-x: ${scTranslate * -1}%;`

@@ -1,5 +1,5 @@
 import { isNonEmptyStr } from "../../../utils/data-utils";
-import { getLogBits } from "./comms-utils";
+import { getLogBits, sanitise, sanitiseID } from "./comms-utils";
 
 /**
  * FileSelectCommunicator provides a way of passing data to another
@@ -41,31 +41,58 @@ export class FileSelectCommunicator {
   }
 
   _simpleDispatcher(event, data) {
-    if (typeof this._actions[event] !== 'undefined') {
-      for (const key of Object.keys(this._actions[event])) {
-        this._actions[event][key](data);
+    const _event = sanitise(event);
+
+    if (typeof this._actions[_event] !== 'undefined') {
+      for (const key of Object.keys(this._actions[_event])) {
+        this._actions[_event][key](data);
       }
     }
   }
 
   _loggingDispatcher(event, data, _src) {
     const { ext, src } = getLogBits(_src);
+    const _event = sanitise(event);
 
     // eslint-disable-next-line no-console
-    console.groupCollapsed(`Communicator.dispatch("${event}")${ext}`);
+    console.groupCollapsed(`Communicator.dispatch("${_event}")${ext}`);
 
     if (src !== '') {
       console.log('SOURCE:', src); // eslint-disable-line no-console
     }
 
-    console.log('event:', event); // eslint-disable-line no-console
+    console.log('event:', _event); // eslint-disable-line no-console
     console.log('data:', data); // eslint-disable-line no-console
 
-    this._simpleDispatcher(event, data);
+    if (typeof this._actions[_event] !== 'undefined') {
+      for (const key of Object.keys(this._actions[_event])) {
+        console.log(`handler for: "${key}"`); // eslint-disable-line no-console
+        this._actions[_event][key](data);
+      }
+    }
 
-    this._log.push({ event, data });
+    this._log.push({ _event, data });
 
     console.groupEnd(); // eslint-disable-line no-console
+  }
+
+  _addWatcherInner(event, id, watcher, replace = false) {
+    const _event = sanitise(event);
+    const _id = sanitiseID(id);
+
+    if (this._exists(_event, _id) === true && replace !== true) {
+      throw new Error(
+        'addWatcher() could not add new '
+        + `watcher because a watcher with the ID "${_id}" `
+        + 'already exists',
+      );
+    }
+
+    if (typeof this._actions[_event] === 'undefined') {
+      this._actions[_event] = {};
+    }
+
+    this._actions[_event][_id] = watcher;
   }
 
   /**
@@ -74,7 +101,7 @@ export class FileSelectCommunicator {
    *
    * @function addWatcher
    *
-   * @param {string}   event   Type of event that will trigger a call
+   * @param {string|string[]}   event   Type of event that will trigger a call
    *                           to dispatch
    * @param {function} watcher Watcher function to be called when an
    *                           event is dispatched
@@ -95,8 +122,10 @@ export class FileSelectCommunicator {
    *                 * `watcher` is matched by `id` but `replace`
    *                   is FALSE
    */
-  addWatcher(event, watcher, id, replace = false) {
-    if (!isNonEmptyStr(event) || (typeof watcher !== 'function') || !isNonEmptyStr(id)) {
+  addWatcher(event, id, watcher, replace = false) {
+    if ((!isNonEmptyStr(event) && !Array.isArray(event))
+      || !isNonEmptyStr(id) || (typeof watcher !== 'function')
+    ) {
       throw new Error(
         'addWatcher() could not add new watcher because '
         + '`event` or `id` were empty strings or supplied '
@@ -104,19 +133,13 @@ export class FileSelectCommunicator {
       );
     }
 
-    if (this._exists(event, id) === true && replace !== true) {
-      throw new Error(
-        'addWatcher() could not add new '
-        + `watcher because a watcher with the ID "${id}" `
-        + 'already exists',
-      );
+    if (Array.isArray(event)) {
+      for (const ev of event) {
+        this._addWatcherInner(ev, id, watcher, replace);
+      }
+    } else {
+      this._addWatcherInner(event, id, watcher, replace);
     }
-
-    if (typeof this._actions[event] === 'undefined') {
-      this._actions[event] = {};
-    }
-
-    this._actions[event][id] = watcher;
   }
 
   /**
@@ -131,15 +154,20 @@ export class FileSelectCommunicator {
    *                    FALSE otherwise.
    */
   removeWatcher(event, id) {
-    if (this._exists(event, id) === true) {
+    const _event = sanitise(event);
+    const _id = sanitiseID(id);
+
+    if (this._exists(event, _id) === true) {
       const tmp = {};
-      for (const key of Object.keys(this._actions[event])) {
-        if (key !== id) {
-          tmp[key] = this._actions[event][key];
+
+      for (const key of Object.keys(this._actions[_event])) {
+        if (key !== _id) {
+          tmp[key] = this._actions[_event][key];
         }
       }
 
       this._actions[event] = tmp;
+
       return true;
     }
 
@@ -157,9 +185,10 @@ export class FileSelectCommunicator {
    */
   removeWatchersById(id) {
     let output = 0;
+    const _id = sanitiseID(id);
 
     for (const event of Object.keys(this._actions)) {
-      if (this.removeWatcher(event, id) === true) {
+      if (this.removeWatcher(event, _id) === true) {
         output += 1;
       }
     }

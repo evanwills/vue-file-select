@@ -17,3 +17,19 @@ export const getLogBits = (input) => {
 
   return { ext, src };
 };
+
+/**
+ * Sanitise (and normalise) event name
+ *
+ * @param {string} input
+ * @returns {string}
+ */
+export const sanitise = (input) => input.toLowerCase().replace(/[^a-z\d]+/ig, '');
+
+/**
+ * Sanitise (and normalise) event name
+ *
+ * @param {string} input
+ * @returns {string}
+ */
+export const sanitiseID = (input) => input.replace(/[^a-z\d_-]+/ig, '');
