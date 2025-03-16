@@ -17,7 +17,7 @@
       :focus-pos="focusIndex"
       :length="files.length"
       v-on:focusindex="carouselFocus">
-      <FileSelectUiFileListItem
+      <FileSelectUiListItem
         v-for="file in files"
         :data="file"
         :id="file.id"
@@ -79,7 +79,7 @@ import {
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import AlertBlock from '../../AlertBlock.vue';
-import FileSelectUiFileListItem from './FileSelectUiFileListItem.vue';
+import FileSelectUiListItem from './FileSelectUiListItem.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import SimpleCarousel from '../../SimpleCarousel.vue';
 

@@ -18,7 +18,7 @@
           :file-list="selectedFiles"
           :id="previewID"
           v-on:use="closePreview" />
-        <FileSelectUiFileList
+        <FileSelectUiList
           v-show="previewing === false"
           :accept-types="acceptTypes"
           :id="listID"
@@ -29,7 +29,7 @@
           v-on:upload="handleUpload">
           <slot name="default"></slot>
           <slot name="error"></slot>
-        </FileSelectUiFileList>
+        </FileSelectUiList>
         <button
           class="file-select-ui__btn file-select-ui-modal__btn-close"
           type="button"
@@ -62,7 +62,7 @@ import { getEpre } from '../../../utils/general-utils';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
 import { FileSelectList } from '../logic/FileSelectList.class';
 import { getAllowedTypes } from '../logic/file-select-utils';
-import FileSelectUiFileList from './FileSelectUiFileList.vue';
+import FileSelectUiList from './FileSelectUiList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import FileSelectUiPreview from './FileSelectUiPreview.vue';
 import ModalDialogue from '../../ModalDialogue.vue';
