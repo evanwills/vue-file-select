@@ -387,7 +387,7 @@ onMounted(() => {
 }
 .file-select-ui-modal > div {
   padding-top: 3rem;
-  max-width: 32rem;
+  max-width: 33rem;
 }
 .file-select-ui__btn {
   border: 0.05rem solid #fff;

@@ -47,8 +47,9 @@ export class IBRimageProcessor extends ImageProcessor {
    *                                  processed
    * @returns {Function<{Blob}}}
    */
-  _processImageBlobThen(file) {
+  _processImageBlobThen(file, lastModified) {
     return (blob) => {
+      this._dispatch('endImgProcessing', file);
       return new File(
         [blob],
         file.name,
@@ -84,11 +85,35 @@ export class IBRimageProcessor extends ImageProcessor {
   }
 
   async _processInner(file, _resizeRatio) { // eslint-disable-line no-unused-vars
-    return IBRimageProcessor._reducer.toBlob(
-      file,
-      { max: this._config.maxImgPx },
-    ).then(this._processImageBlobThen(fileData))
-      .catch(this._processImageBlobCatch(fileData));
+    try {
+      const blob = await IBRimageProcessor._reducer.toBlob(
+        file,
+        { max: this._config.maxImgPx },
+      );
+
+      this._dispatch('endImgProcessing', file);
+      return new File(
+        [blob],
+        file.name,
+        {
+          type: blob.type,
+          lastModified: file.lastModified,
+        },
+      );
+    } catch (error) {
+      this._dispatch('resizeerror', error.message);
+
+      if (error.message.includes('Pica: cannot use getImageData on canvas')) {
+        IBRimageProcessor._noResize = true;
+        setLocalValue('noResize', 1);
+        this._dispatch('noResize', true);
+      }
+      file.processing = false; // eslint-disable-line no-param-reassign
+      this._dispatch('endImgProcessing', file);
+    }
+
+    // .then(this._processImageBlobThen(file.name, file.lastModified))
+    //   .catch(this._processImageBlobCatch(file));
   }
 
   //  END:  Private methods

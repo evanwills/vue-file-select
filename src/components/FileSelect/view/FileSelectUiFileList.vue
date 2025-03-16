@@ -74,7 +74,6 @@ import {
   computed,
   onBeforeMount,
   onBeforeUnmount,
-  onUnmounted,
   onUpdated,
   ref,
 } from 'vue';
@@ -112,6 +111,7 @@ const ePre = ref(null);
 const init = ref(false);
 const focusIndex = ref(0);
 const badFile = ref([]);
+const total = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -123,8 +123,6 @@ const badFile = ref([]);
 
 const showErrors = computed(() => (props.fileList !== null
     && (props.fileList.ok === false || badFile.value.length > 0)));
-
-const total = computed(() => props.fileList.getFileCount());
 
 const inputID = computed(() => `${props.id}--add-files`);
 
@@ -144,20 +142,27 @@ const updateBadFile = (data) => {
 };
 
 const resetFiles = () => {
+  total.value = props.fileList.getFileCount();
   files.value = props.fileList.getAllFilesRaw();
 }
 
+const toBeAdded = () => {
+  focusIndex.value = total.value;
+}
 
 const deletedWatcher = (data) => {
   resetFiles();
+
   badFile.value = [];
-  focusIndex.value -= 1;
+
+  if (focusIndex.value >= total.value) {
+    focusIndex.value = total.value -1;
+  }
 };
 
 const addedWatcher = (data) => {
   resetFiles();
   updateBadFile(data);
-  focusIndex.value = (files.value.length - 1);
 };
 
 const notAddedWatcher = (data) => {
@@ -184,6 +189,7 @@ const setWatcher = () => {
     ];
 
     props.fileList.addWatcher(actions, props.id, resetFiles);
+    props.fileList.addWatcher('toBeAdded', props.id, toBeAdded);
     props.fileList.addWatcher('added', props.id, addedWatcher);
     props.fileList.addWatcher('deleted', props.id, deletedWatcher);
     props.fileList.addWatcher('notadded', props.id, notAddedWatcher);

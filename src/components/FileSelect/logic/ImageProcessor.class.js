@@ -145,7 +145,7 @@ export class ImageProcessor {
    * @param {FileSelectFileData} fileData
    * @returns {FileSelectFileData}
    */
-  async _getResizeRatio(height, width) {
+  _getResizeRatio(height, width) {
     const portrait = (height > width);
 
     if (portrait === true) {
@@ -209,7 +209,7 @@ export class ImageProcessor {
         || this._config.greyScale === true
         || (resizeRatio > 0 && resizeRatio < 1)
       ) {
-        return this._processInner(fileData, resizeRatio);
+        return this._processInner(file, resizeRatio);
       }
     }
 

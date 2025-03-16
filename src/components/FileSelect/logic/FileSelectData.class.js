@@ -12,6 +12,7 @@ import {
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
 import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 import { getImageSrc } from './file-select-File-utils';
+import { isObj } from '../../../utils/data-utils';
 
 export class FileSelectData {
   // ----------------------------------------------------------------
@@ -201,17 +202,21 @@ export class FileSelectData {
     }
   }
 
-  _setFileMeta(setOg = false) {
+  _setFileMeta(file, setOg = false) {
+    const newName = getUniqueFileName(file.name, this._id);
+
     if (setOg === true) {
-      this._ogName = this._file.name;
-      this._previousName = this._file.name;
-      this._ogSize = this._file.size
-    } else {
-      this._previousName = this._name
+      this._ogName = file.name;
+      this._ogSize = file.size
     }
-    this._name = getUniqueFileName(this._file.name, this._id);
-    this._ext = getFileExtension(this._file);
-    this._isImage = fileIsImage(this._file);
+
+    this._previousName = (typeof this._previousName !== 'string' || typeof this._name !== 'string')
+      ? newName
+      : this._name;
+
+    this._name = newName;
+    this._ext = getFileExtension(file);
+    this._isImage = fileIsImage(file);
     this._mime = this._file.type;
 
     this._setOK();
@@ -220,9 +225,9 @@ export class FileSelectData {
   /**
    * If a the file is new and is an image image
    *
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  async _processImage() {
+  _processImage() {
     if (this._newFile === true && this._imgProcessor !== null
       && this._isImage === true && this._ext !== 'svg'
       && this._processing === false
@@ -232,14 +237,22 @@ export class FileSelectData {
         this._processing = true;
         this._dispatch('imageProcessingStart', this._id);
 
-        this._file = await this._imgProcessor.process(this, this.width, this.height);
+        const tmp = await this._imgProcessor.process(
+          this.file,
+          this.width,
+          this.height,
+        );
 
-        this._setFileMeta(this._file);
+        if (tmp instanceof File) {
+          this._file = tmp
 
-        if (this._ogSize !== this._file.size) {
-          this._dispatch('imageResized', this._id);
-          await this._setImageSrc();
-          await this._setImageMeta(true);
+          this._setFileMeta(tmp);
+
+          if (this._ogSize !== this._file.size) {
+            this._dispatch('imageResized', this._id);
+            await this._setImageSrc();
+            await this._setImageMeta();
+          }
         }
 
         this._processing = false;
@@ -254,43 +267,52 @@ export class FileSelectData {
     return Promise.resolve(false);
   }
 
-  _setImageMetaInner(result) {
-    this._metaWaiting = false;
+  _setImageMetaInner(result, force) {
+    if (isObj(result)) {
+      this._metaWaiting = false;
 
-    this._imgMeta = (this._imgMeta === null)
-      // set the image meta object from scratch
-      ? { ...result }
-      // merge the latest data into the image meata object
-      : {
-        ...this._imgMeta,
-        ...result,
-      };
+      this._imgMeta = (this._imgMeta === null)
+        // set the image meta object from scratch
+        ? { ...result }
+        // merge the latest data into the image meata object
+        : {
+          ...this._imgMeta,
+          ...result,
+        };
 
-    this._tooLarge = (result.height > this._config.maxImgPx
-      || result.width > this._config.maxImgPx);
+      this._tooLarge = (result.height > this._config.maxImgPx
+        || result.width > this._config.maxImgPx);
 
-    if (force === false || typeof this._imgMeta.ogHeight !== 'number') {
-      // Only set the original height & width the first time this
-      // is called
-      this._imgMeta.ogHeight = result.height;
-      this._imgMeta.ogWidth = result.width;
-    } else if (force === true && this._tooLarge === true) {
-      this._ok = false;
+      if (force === true || typeof this._imgMeta.ogHeight !== 'number') {
+        // Only set the original height & width the first time this
+        // is called
+        this._imgMeta.ogHeight = result.height;
+        this._imgMeta.ogWidth = result.width;
+      }
+
+      if (force === true && this._tooLarge === true) {
+        this._ok = false;
+      }
+
+      this._dispatch('imageMetaSet', this._id);
     }
-
-    this._dispatch('imageMetaSet', this._id);
-    // this._dispatch('imageSrcSet', this._id);
   }
 
-  _setImageMeta(force = false) {
-    if (this._isImage === true && this._metaWaiting === false
-      && (this._imgMeta === null || force === true)
-    ) {
+  async _setImageMeta(force = false) {
+    if (this._isImage === true && this._metaWaiting === false) {
       this._metaWaiting = true;
 
+      await this._setImageSrc();
+
+      const result = await getImageMetadata(this._src);
+
+      this._setImageMetaInner(result, force);
+
+      await this._processImage();
+
       return getImageMetadata(this._src)
-        .then(this._setImageMetaInner)
-        .then(this._processImage)
+        .then(this._setImageMetaInner(force))
+        .then(this._processImage())
         .catch((error) => {
           console.group('FileSelectData._setImageMeta()');
           console.error('error:', error.message);
@@ -329,7 +351,7 @@ export class FileSelectData {
   }
 
   get height() {
-    return (typeof this._isImage?.height === 'number')
+    return (typeof this._imgMeta?.height === 'number')
       ? this._imgMeta.height
       : 0;
   }
@@ -477,7 +499,7 @@ export class FileSelectData {
   }
 
   get width() {
-    return (typeof this._isImage?.height === 'number')
+    return (typeof this._imgMeta?.height === 'number')
       ? this._imgMeta.width
       : 0;
   }
@@ -549,7 +571,7 @@ export class FileSelectData {
       this._file = file;
       this._replaceCount += 1;
 
-      this._setFileMeta(this._newFile);
+      this._setFileMeta(file, true);
 
       await this._setImageMeta(true);
       this._dispatch('replaced', this._id);

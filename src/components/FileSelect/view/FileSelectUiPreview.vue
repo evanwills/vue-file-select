@@ -150,7 +150,7 @@ const setWatcher = () => {
   if (isFileList.value === true && watcherSet.value === false) {
     watcherSet.value = true;
 
-    props.fileList.addWatcher('endprocessingimage', props.id, endProcessingImageWatcher);
+    props.fileList.addWatcher('imageprocessingend', props.id, endProcessingImageWatcher);
     props.fileList.addWatcher('imageMetaSet', props.id, imageMetaSetWatcher);
     props.fileList.addWatcher('imageSrcSet', props.id, imageSrcSetWatcher);
   }

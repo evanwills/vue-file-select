@@ -18,19 +18,20 @@
 
       <span class="data-info">
         <span class="data-info-child">
-          <span class="l">Size:</span> <span class="v">{{ s }}B</span>
-          (<span class="l">OG size:</span> <span class="v">{{ ogS }}B</span>)
+          <span class="l">Size:</span> <span class="v">{{ s.size }}{{ s.type }}</span>
+          (<span class="l">Original:</span> <span class="v">{{ ogS.size }}{{ ogS.type }}</span>)
         </span>
         <span class="data-info-child" v-if="data.isImage">
           <span class="l">Width:</span> <span class="v">{{ w }}px</span>
-          (<span class="l">OG width:</span> <span class="v">{{ ogW }}px</span>)<br />
+          (<span class="l">Original:</span> <span class="v">{{ ogW }}px</span>)<br />
           <span class="l">Height:</span> <span class="v">{{ h }}px</span>
-          (<span class="l">OG height:</span> <span class="v">{{ ogH }}px</span>)
+          (<span class="l">Original:</span> <span class="v">{{ ogH }}px</span>)
         </span>
+        <span class="data-info-child data-info-child--position">{{ pos + 1 }} of {{ total }}</span>
       </span>
     </div>
 
-    <p class="btn-list">
+    <p :class="btnListClass">
       <span v-if="noMove === false">
         <button
           v-if="canMoveUp"
@@ -94,7 +95,7 @@ import {
   ref,
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
-import { formatNum } from '../logic/file-select-utils';
+import { formatBytes, formatNum } from '../logic/file-select-utils';
 import LoadingSpinner from '../../LoadingSpinner.vue';
 
 // ------------------------------------------------------------------
@@ -148,7 +149,7 @@ const imgSrcReset = ref(0);
 // START: Computed state
 
 const canMoveUp = computed(() => (props.pos > 0));
-const canMoveDown = computed(() => (props.pos < props.total));
+const canMoveDown = computed(() => ((props.pos + 1) < props.total));
 
 const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '')
   .substring(0, 128).replace(/(?=\.)/g, '<wbr />'));
@@ -159,10 +160,18 @@ const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
     : -1;
 });
 
+const btnListClass = computed(() => {
+  const tmp = 'btn-list';
+
+  return (props.isFocused)
+    ? `${tmp} ${tmp}--focused`
+    : tmp;
+});
+
 const wrapWidth = computed(() => `width: ${100 / props.total}%;`);
 
-const s = computed(() => formatNum(size.value));
-const ogS = computed(() => formatNum(ogSize.value));
+const s = computed(() => formatBytes(size.value));
+const ogS = computed(() => formatBytes(ogSize.value));
 
 const w = computed(() => {
   return (typeof width.value === 'number')
@@ -233,16 +242,11 @@ const handleRenameReplace = async (data) => {
 const handleEndProcessingImage = async (data) => {
   if (data === props.data.id) {
     processing.value = props.data.processing;
+    setFileMeta();
   }
 };
 
 const handleImageMetaSet = async (data) => {
-  if (data === props.data.id) {
-    _name.value = props.data.name;
-  }
-};
-
-const handleRenamed = async (data) => {
   if (data === props.data.id) {
     _name.value = props.data.name;
   }
@@ -274,7 +278,7 @@ onBeforeMount(() => {
     setFileMeta();
     const _id = `listItem--${props.id}`;
 
-    props.data.addWatcher('endprocessingimage', _id, handleEndProcessingImage);
+    props.data.addWatcher('imageprocessingend', _id, handleEndProcessingImage);
     props.data.addWatcher(['imageMetaSet', 'resized'], _id, handleImageMetaSet);
     props.data.addWatcher('imageSrcSet', _id, handleImageSrcSet);
     props.data.addWatcher(['renamed', 'replaced'], _id, handleRenameReplace);
@@ -305,10 +309,18 @@ li + li {
   padding: 0 0.5rem 0.5rem;
   border-bottom: 0.05rem dotted #aaa;
 }
+button:disabled {
+  cursor: not-allowed;;
+}
 .btn-list {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-around;
+  opacity: 0;
+  transition: opacity ease-in-out 0.2s;
+}
+.btn-list--focused {
+  opacity: 1;
 }
 .btn-list span {
   display: flex;
