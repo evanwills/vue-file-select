@@ -203,11 +203,7 @@ onBeforeMount(() => {
 });
 
 onUnmounted(() => {
-  const watchers = ['endprocessingimage', 'imageMetaSet', 'imageSrcSet'];
-
-  for (const event of watchers) {
-    props.fileList.removeWatcher('imageSrcSet', props.id);
-  }
+  props.fileList.removeWatchersById('imageSrcSet', props.id);
 })
 
 //  END:  Lifecycle methods

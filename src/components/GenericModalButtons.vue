@@ -34,15 +34,9 @@ const emit = defineEmits(['confirm', 'cancel']);
 // buton wrap: sm:flex-row sm:justify-stretch items-center
 
 const emitAction = (_event, action) => {
-  console.group('GenericModalButtons.emitAction()');
-  console.log('_event:', _event);
-  console.log('action:', action);
-  console.log('props.value:', props.value);
   emit(action, props.value);
-  console.groupEnd();
 };
 </script>
-
 
 <style lang="css" scoped>
 .generic-modal__btns {

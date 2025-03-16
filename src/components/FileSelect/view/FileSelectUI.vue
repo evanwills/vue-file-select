@@ -299,7 +299,7 @@ const initFiles = () => {
           + 'Individual files must be less than [[MAX_SINGLE]] and [[MAX_TOTAL]] total '
           + 'for multiple files.',
         invalidType: 'We detected an invalid file type. '
-          + 'Valid file types include, [[TYPE_LIST]]'
+          + 'Valid file types include, [[TYPE_LIST]]',
       },
     },
   );

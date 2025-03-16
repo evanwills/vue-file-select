@@ -108,6 +108,17 @@ const props = defineProps({
   icon: { type: String, required: false, default: '' },
 
   /**
+   * For dismissable alerts/notices, it is useful to know which
+   * alert/notice was dismissed.
+   *
+   * if ID is supplied, it will be the value passed along with the
+   * dismiss event.
+   *
+   * @property {string} id
+   */
+  id: { type: String, required: false, default: '' },
+
+  /**
    * Text to render in the alert's footer link
    *
    * > __Note:__ Both `linkTxt` and `linkUrl` are required for the
@@ -204,6 +215,12 @@ const ePre = ref(null); // eslint-disable-line no-unused-vars
 // --------------------------------------------------
 // START: Computed properties
 
+const role = computed(() => { // eslint-disable-line arrow-body-style
+  return (props.notice === true)
+    ? undefined
+    : 'alert';
+});
+
 /**
  * All the classes needed to make the alert wrapper look how it
  * should
@@ -281,7 +298,7 @@ const showLink = computed(() => isNonEmptyStr(props.linkUrl) && isNonEmptyStr(pr
  */
 const dismiss = () => {
   dismissed.value = true;
-  emit('dismissed');
+  emit('dismissed', props.id);
 };
 
 //  END:  Event handlers
@@ -297,6 +314,9 @@ onBeforeMount(() => {
     ePre.value = getEpre(componentName, props.heading); // eslint-disable-line no-unused-vars
   }
 });
+
+//  END:  Lifecycle events
+// --------------------------------------------------
 </script>
 
 <style lang="css" scoped>

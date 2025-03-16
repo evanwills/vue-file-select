@@ -1,4 +1,3 @@
-import FileSelectFileData from './FileSelectData.class';
 import { ImageProcessor } from './ImageProcessor.class';
 
 const photonURL = 'http://localhost:3917/wasm/photon_rs_bg.wasm';
@@ -23,7 +22,7 @@ export class PhotonImageProcessor extends ImageProcessor {
   // ----------------------------------------------------------------
   // START: Instance constructor
 
-  constructor (canvas, config = null, comms = null) {
+  constructor(canvas, config = null, comms = null) {
     super(canvas, config, comms);
     this._obj = 'PhotonImageProcessor';
   }
@@ -76,10 +75,6 @@ export class PhotonImageProcessor extends ImageProcessor {
     fileData.ok = (file.size < this._config.maxSingleSize);
     fileData.setImageMetadata(true);
     this._dispatch('endprocessing', fileData);
-
-    // const newName = fileData.name !== fileData.file.name
-    //   ? fileData.file.name
-    //   : null;
   }
 
   static _setPhoton(photon) {
@@ -132,7 +127,7 @@ export class PhotonImageProcessor extends ImageProcessor {
   forceInit() {
     if (PhotonImageProcessor.#processor === null) {
       import('@silvia-odwyer/photon').then(
-        PhotonImageProcessor.#setPhoton,
+        PhotonImageProcessor._setPhoton,
       );
     }
   }

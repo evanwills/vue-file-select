@@ -2,7 +2,7 @@
   <GenericModal
     class="modal-dialogue"
     :no-manual-close="loading"
-    :open="showModal"
+    :open="open"
     v-on:close="emitAction($event, 'cancel')">
     <ModalContent
       aria-live="polite"
@@ -20,6 +20,7 @@
       v-if="!loading && (mode === 'comfirm' || !noMainClose)"
       :cancel-btn-txt="getCancelCloseTxt"
       :confirm-btn-txt="getConfirmBtnTxt"
+      :confirm-danger="confirmDanger"
       :sr-only="heading"
       v-on:cancel="emitAction($event, 'cancel')"
       v-on:confirm="emitAction($event, 'submit')" />
@@ -31,6 +32,7 @@ import {
   computed,
   onBeforeMount,
   ref,
+  watch,
 } from 'vue';
 import ModalContent from './ModalContent.vue';
 import { getEpre } from '../utils/general-utils';
@@ -47,6 +49,7 @@ const props = defineProps({
   body: { type: String, required: false, default: '' },
   cancelTxt: { type: String, required: false, default: 'Close' },
   confirmTxt: { type: String, required: false, default: 'Save' },
+  confirmDanger: { type: Boolean, required: false, default: false },
   heading: { type: String, required: false, default: '' },
   hLevel: { type: Number, required: false, default: 2 },
   icon: { type: String, requried: false, default: '' },
@@ -71,6 +74,7 @@ const props = defineProps({
  * @returns {string}
  */
 const ePre = ref(null);
+const open = ref(props.showModal);
 
 //  END:  Local state
 // --------------------------------------------------
@@ -112,17 +116,17 @@ const getModalID = computed(() => `${props.mId}--dialogue-modal`);
 // START: Local methods
 
 const emitAction = (_event, action) => {
-  console.group(ePre.value('emitAction'));
-  console.log('_event:', _event);
-  console.log('action:', action);
-  console.log('props.value:', props.value);
+  if (action === 'cancel') {
+    open.value = false;
+  }
   emit(action, props.value);
-  console.groupEnd();
 };
 
 //  END:  Local methods
 // --------------------------------------------------
 // START: Watcher methods
+
+watch(() => props.showModal, (newVal) => { open.value = newVal; });
 
 //  END:  Watcher methods
 // --------------------------------------------------
@@ -135,3 +139,6 @@ onBeforeMount(() => {
 //  END:  Lifecycle events
 // --------------------------------------------------
 </script>
+
+<style lang="css" scoped>
+</style>
