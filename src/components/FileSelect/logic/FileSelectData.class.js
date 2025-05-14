@@ -4,13 +4,14 @@ import {
   getFileExtension,
   getUniqueFileName,
   getValidMaxSingleSize,
+  imgIsTooLarge,
   isValidFileType,
   overrideConfig,
   rewriteConfigError,
   rewriteError,
 } from './file-select-utils';
+import { ComponentCommunicator } from '../../../ComponentCommunicator.class';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
-import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 import { getImageSrc } from './file-select-File-utils';
 import { isObj } from '../../../utils/data-utils';
 
@@ -62,7 +63,7 @@ export class FileSelectData {
 
   _src = '';
 
-  _tooLarge = null;
+  _tooLarge = false;
 
   _config;
 
@@ -95,11 +96,11 @@ export class FileSelectData {
     this._processing = false;
     this._replaceCount = 0;
     this._src = '';
-    this._tooLarge = null;
+    this._tooLarge = false;
 
     this._setConfig(config);
 
-    if (comms !== null && comms instanceof FileSelectCommunicator === true) {
+    if (comms !== null && comms instanceof ComponentCommunicator === true) {
       this._comms = comms;
     }
 
@@ -110,8 +111,7 @@ export class FileSelectData {
     }
 
     if (this._isImage) {
-      this._setImageSrc(file);
-      this._setImageMeta(true);
+      this._initImage(file);
     }
   }
 
@@ -160,6 +160,11 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Private method
 
+  _initImage(file) {
+    this._setImageSrc(file);
+    this._setImageMeta(true);
+  }
+
   async _setImageSrc() {
     if (this._isImage && this._ext !== 'svg') {
       try {
@@ -197,8 +202,10 @@ export class FileSelectData {
     if (isValidFileType(this._file, this._config.allowedTypes) === false) {
       this._invalid = true;
       this._ok = false;
-    } else if (this.tooHeavy === true) {
+    } else if (this.tooHeavy === true || this._tooLarge === true) {
       this._ok = false;
+    } else {
+      this._ok = true;
     }
   }
 
@@ -207,7 +214,7 @@ export class FileSelectData {
 
     if (setOg === true) {
       this._ogName = file.name;
-      this._ogSize = file.size
+      this._ogSize = file.size;
     }
 
     this._previousName = (typeof this._previousName !== 'string' || typeof this._name !== 'string')
@@ -232,7 +239,7 @@ export class FileSelectData {
       && this._isImage === true && this._ext !== 'svg'
       && this._processing === false
     ) {
-      return new Promise(async (resolve, reject) => {
+      return async (resolve) => {
         this._newFile = false;
         this._processing = true;
         this._dispatch('imageProcessingStart', this._id);
@@ -244,7 +251,7 @@ export class FileSelectData {
         );
 
         if (tmp instanceof File) {
-          this._file = tmp
+          this._file = tmp;
 
           this._setFileMeta(tmp);
 
@@ -258,8 +265,10 @@ export class FileSelectData {
         this._processing = false;
         this._dispatch('imageProcessingEnd', this._id);
 
-        resolve(true);
-      });
+        if (typeof resolve === 'function') {
+          resolve(true);
+        }
+      };
     }
 
     this._newFile = false;
@@ -280,8 +289,7 @@ export class FileSelectData {
           ...result,
         };
 
-      this._tooLarge = (result.height > this._config.maxImgPx
-        || result.width > this._config.maxImgPx);
+      this._tooLarge = imgIsTooLarge(this._config, result.width, result.height);
 
       if (force === true || typeof this._imgMeta.ogHeight !== 'number') {
         // Only set the original height & width the first time this
@@ -290,9 +298,7 @@ export class FileSelectData {
         this._imgMeta.ogWidth = result.width;
       }
 
-      if (force === true && this._tooLarge === true) {
-        this._ok = false;
-      }
+      this._setOK();
 
       this._dispatch('imageMetaSet', this._id);
     }
@@ -328,17 +334,11 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Public getter & setter methods
 
-  get allowedTypes() {
-    return this._config.allowedTypes;
-  }
+  get allowedTypes() { return this._config.allowedTypes; }
 
-  get ext() {
-    return this._ext;
-  }
+  get ext() { return this._ext; }
 
-  get file() {
-    return this._file;
-  }
+  get file() { return this._file; }
 
   /**
    * @param {File} file
@@ -346,7 +346,7 @@ export class FileSelectData {
   set file(file) {
     throw new Error(
       'FileSelectData does not allow file to be replaced manually. '
-      + 'Use `replaceFile()` method instead',
+      + `Use \`replaceFile()\` method instead (#${this._id})`,
     );
   }
 
@@ -356,21 +356,13 @@ export class FileSelectData {
       : 0;
   }
 
-  get id() {
-    return this._id;
-  }
+  get id() { return this._id; }
 
-  get imgMeta() {
-    return this._imgMeta;
-  }
+  get imgMeta() { return this._imgMeta; }
 
-  get invalid() {
-    return this._invalid;
-  }
+  get invalid() { return this._invalid; }
 
-  get isImage() {
-    return (this._isImage === true && this._invalid === false);
-  }
+  get isImage() { return (this._isImage === true && this._invalid === false); }
 
   get lastModified() {
     return (typeof this._file.lastModified !== 'undefined')
@@ -378,9 +370,7 @@ export class FileSelectData {
       : -1;
   }
 
-  get mime() {
-    return this._mime;
-  }
+  get mime() { return this._mime; }
 
   /**
    * @param {string} mime
@@ -391,9 +381,7 @@ export class FileSelectData {
     }
   }
 
-  get name() {
-    return this._name;
-  }
+  get name() { return this._name; }
 
   /**
    * @param {string} name
@@ -414,23 +402,17 @@ export class FileSelectData {
       : 0;
   }
 
-  get ogName() {
-    return this._ogName;
-  }
+  get ogName() { return this._ogName; }
 
   get ogWidth() {
     return (typeof this._imgMeta?.ogWidth === 'number')
-        ? this._imgMeta.ogWidth
-        : 0;
+      ? this._imgMeta.ogWidth
+      : 0;
   }
 
-  get ogSize() {
-    return this._ogSize;
-  }
+  get ogSize() { return this._ogSize; }
 
-  get ok() {
-    return this._ok;
-  }
+  get ok() { return this._ok; }
 
   /**
    * @param {boolean} ok
@@ -441,9 +423,7 @@ export class FileSelectData {
     }
   }
 
-  get position() {
-    return this._position;
-  }
+  get position() { return this._position; }
 
   /**
    * @param {number} position
@@ -454,13 +434,9 @@ export class FileSelectData {
     }
   }
 
-  get previousName() {
-    return this._previousName;
-  }
+  get previousName() { return this._previousName; }
 
-  get processing() {
-    return this._processing;
-  }
+  get processing() { return this._processing; }
 
   set processing(processing) {
     if (typeof processing === 'boolean') {
@@ -468,17 +444,11 @@ export class FileSelectData {
     }
   }
 
-  get replaceCount() {
-    return this._replaceCount;
-  }
+  get replaceCount() { return this._replaceCount; }
 
-  get size() {
-    return this._file.size;
-  }
+  get size() { return this._file.size; }
 
-  get src() {
-    return this._src;
-  }
+  get src() { return this._src; }
 
   set src(src) {
     if (typeof src === 'string' && src.startsWith('data:image/')) {
@@ -494,9 +464,7 @@ export class FileSelectData {
     return (this._file.size > this._config.maxSingleSize);
   }
 
-  get tooLarge() {
-    return this._tooLarge;
-  }
+  get tooLarge() { return this._tooLarge; }
 
   get width() {
     return (typeof this._imgMeta?.height === 'number')

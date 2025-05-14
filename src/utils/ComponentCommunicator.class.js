@@ -1,22 +1,18 @@
-import { isNonEmptyStr } from "../../../utils/data-utils";
-import { getLogBits, sanitise, sanitiseID } from "./comms-utils";
+import { isNonEmptyStr } from './data-utils';
+import { getLogBits, sanitise, sanitiseID } from './comms-utils';
 
 /**
- * FileSelectCommunicator provides a way of passing data to another
+ * ComponentCommunicator provides a way of passing data to another
  * part of an application that may be interested in something
  * changing.
  *
- * It behaves vaguely similarly to how DOM event listeners work, in
- * that something can add a watcher. Then whenever any event is fired
- * the watcher is called. The watcher can then do something if the
- * event being fired is relevant to it.
- *
- * In retrospect, I think this is not an ideal pattern. Really this
- * should be rearchitected so that it behaves exactly like DOM events
- * where where a client listens for individual events. Then, when an
- * event is fired only the listeners for that event are called.
+ * It behaves very similarly to how DOM event listeners work.
+ * Like with DOM events, A component (or object) can add a watcher
+ * for one or more event types. Then when events are dispatched
+ * (via ComponentCommunicator), any watchers for those events are
+ * called with the data that was dispatched with the event.
  */
-export class FileSelectCommunicator {
+export class ComponentCommunicator {
   _actions = {};
 
   _log = [];
@@ -183,7 +179,7 @@ export class FileSelectCommunicator {
    * @returns {number} the number of watchers that were actually
    *                   removed
    */
-  removeWatchersById(id) {
+  removeWatchersByID(id) {
     let output = 0;
     const _id = sanitiseID(id);
 
@@ -217,4 +213,4 @@ export class FileSelectCommunicator {
   }
 }
 
-export default FileSelectCommunicator;
+export default ComponentCommunicator;

@@ -2,11 +2,10 @@ import {
   getValidJpegCompression,
   getValidMaxImgPx,
   getValidMaxSingleSize,
-  isFileDataObj,
   overrideConfig,
   rewriteConfigError,
 } from './file-select-utils';
-import { FileSelectCommunicator } from './FileSelectCommunicator.class';
+import { ComponentCommunicator } from '../../../utils/ComponentCommunicator.class';
 import { getLocalValue } from '../../../utils/data-utils';
 
 export class ImageProcessor {
@@ -67,7 +66,7 @@ export class ImageProcessor {
     }
 
     if (comms !== null) {
-      if (comms instanceof FileSelectCommunicator) {
+      if (comms instanceof ComponentCommunicator) {
         this._comms = comms;
       }
     }

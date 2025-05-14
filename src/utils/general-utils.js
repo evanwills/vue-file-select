@@ -8,8 +8,8 @@ export const formatDate = (isoDate, shortMonth = false) => {
     ? new Date(isoDate)
     : isoDate;
 
-  if ((tmp instanceof Date) === false) {
-    throw new Error('formatDate() could not convert input into Date object');
+  if ((tmp instanceof Date) === false || tmp.toString() === 'Invalid Date') {
+    throw new Error('formatDate() could not convert input into a (valid) Date object');
   }
 
   const month = (shortMonth === true)
@@ -58,14 +58,15 @@ export const formatPhone = (phone) => {
   return tmp.phone.replace(tmp.regex, '$1 $2 $3');
 };
 
-const _phoneSupportLinkInner = (phone) => {
+const _phoneSupportLinkInner = (whole, pre, phone) => { // eslint-disable-line no-unused-vars
   const tmp = santisePhone(phone);
 
   if (tmp === null || tmp.phone.length !== 10) {
     return phone;
   }
 
-  return `<a href="tel:+61${tmp.phone}">${tmp.phone.replace(tmp.regex, '$1 $2 $3')}</a>`;
+  return `${pre}<a href="tel:+61${tmp.phone}">`
+    + `${tmp.phone.replace(tmp.regex, '$1 $2 $3')}</a>`;
 };
 
 /**
@@ -79,7 +80,7 @@ const _phoneSupportLinkInner = (phone) => {
  *                   `tel` links
  */
 export const phoneNumberToLink = (input) => { // eslint-disable-line arrow-body-style
-  const regex = /(?<=[a-z0-9] )([01]([- ]?\d){9})(?= [a-z0-9]+)/ig;
+  const regex = /([a-z0-9] )([01]([- ]?\d){9})(?= [a-z0-9]+)/ig;
 
   return input.replace(regex, _phoneSupportLinkInner);
 };
@@ -256,6 +257,16 @@ export const humanTo = (input, output = 'camel') => {
 };
 
 /**
+ * Get a human friendly list of offer recipient names
+ *
+ * @param {string[]} list List of names of users who are eligible
+ *                        (or have accepted) this offer
+ *
+ * @return {string} human friendly list of offer recipient names
+ */
+export const humanReadableList = (listItems) => listItems.join(', ').replace(/, (?=[^,]+$)/s, ' & ');
+
+/**
  * Add HTML zero width space character entity to email address to
  * make it wrap after the `@` symbol
  *
@@ -279,7 +290,7 @@ export const wrappableEmail = (email, classes = '') => {
     ? ` class="${classes}"`
     : '';
 
-  return email.replace(/[^@a-z\d.\-_']+/, '').replace('@', `@<wbr${cls}>`);
+  return email.replace(/[^@a-z\d.\-_']+/, '').replace('@', `@<wbr${cls} />`);
 };
 /**
  * Find an element and set focus on it.
@@ -350,4 +361,30 @@ export const makeSafeAttr = (input) => {
   }
 
   return input.toLocaleLowerCase().trim().replace(/[^a-z\d\-_]+/ig, '-').replace(/(?:^-|-$)/g, '');
+};
+
+export const isLocalDev = () => {
+  if (typeof window === 'undefined' || window === null) {
+    // we must be running in node or some other server
+    // environment
+    return true;
+  }
+
+  if (typeof window?.location?.host === 'string') {
+    return (window.location.host.includes('localhost') || /:\d{2,5}$/.test(window.location.host));
+  }
+  if (typeof window.location === 'string') {
+    // Is this URL is HTTP only
+    // Does it have "localhost" in the host name
+    // Does it have a port number in the host name
+    // If so
+    return (window.location.startsWith('http://')
+      || /^https:\/\/[^/]*?localhost[^/]*?\//.test(window.location)
+      || /^https:\/\/[^/]*?:\d{2,5}\//.test(window.location));
+  }
+
+  // If we're here, it probably (hopefully) means that I've checked
+  // everything that's likely to indicate we're not in a local
+  // environment.
+  return true;
 };

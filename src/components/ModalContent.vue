@@ -1,7 +1,9 @@
 <template>
   <div :class="wrapClass">
     <div v-if="loading" class="modal-content__loading">
-      <LoadingSpinner v-if="loading === true" class="modal-content__icon" />
+      <LoadingSpinner
+        v-if="loading === true || success === true"
+        class="modal-content__icon" />
     </div>
     <span v-else-if="iconType === 'icon'" :class="iconClass">{{ iconName }}</span>
     <img v-else-if="iconType === 'img'" class="modal-content__icon modal-content__icon--img" :src="icon" alt="" />
@@ -24,8 +26,8 @@ import {
   ref,
   useSlots,
 } from 'vue';
-import LoadingSpinner from './LoadingSpinner.vue';
 import { getEpre } from '../utils/general-utils';
+import LoadingSpinner from './LoadingSpinner.vue';
 
 const slots = useSlots();
 
@@ -35,6 +37,7 @@ const slots = useSlots();
 const props = defineProps({
   body: { type: String, required: true },
   centre: { type: Boolean, required: false, default: false },
+  global: { type: Boolean, required: false, default: false },
   heading: { type: String, required: false, default: '' },
   hLevel: { type: Number, required: false, default: 3 },
   id: { type: String, required: false, default: '' },
@@ -46,6 +49,7 @@ const props = defineProps({
   loading: { type: Boolean, required: false, default: false },
   noIcon: { type: Boolean, required: false, default: false },
   ok: { type: Boolean, required: false, default: false },
+  success: { type: Boolean, required: false, default: false },
 });
 
 //  END:  Properties/attributes

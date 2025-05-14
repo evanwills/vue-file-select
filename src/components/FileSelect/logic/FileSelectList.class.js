@@ -10,11 +10,11 @@ import {
   resetPos,
   rewriteError,
 } from './file-select-utils';
+import { ComponentCommunicator } from '../../../utils/ComponentCommunicator.class';
 import { isObj } from '../../../utils/data-utils';
-import FileSelectData from './FileSelectData.class';
+import { FileSelectData } from './FileSelectData.class';
 import ImageProcessor from './ImageProcessor.IBR.class';
 // import ImageProcessor from ./ImageProcessor.photon.class
-import { FileSelectCommunicator } from './FileSelectCommunicator.class';
 
 // ==================================================================
 // START: Local type definitions
@@ -342,7 +342,7 @@ export class FileSelectList {
   /**
    * Function to dispatch events to the client.
    *
-   * @property {FileSelectCommunicator} _comms
+   * @property {ComponentCommunicator} _comms
    */
   _comms;
 
@@ -555,7 +555,7 @@ export class FileSelectList {
   // START: Constructor method
 
   constructor(canvas = null, config = null) {
-    this._comms = new FileSelectCommunicator(config.logging);
+    this._comms = new ComponentCommunicator(config.logging);
     this._fileList = [];
     this._totalSize = 0;
     this._processingCount = 0;
@@ -856,12 +856,28 @@ export class FileSelectList {
   // ----------------------------------------------------------------
   // START: Public getter methods
 
+  /**
+   * Append all good files to FormData object so they can be sent
+   * back to the server.
+   *
+   * > __Note:__ This appends only the File objects to the form, all
+   * >           the metadata associated with the file is omitted
+   * >           from the form.
+   *
+   * @param {FormData} form A DOM form object to which files can be
+   *                        appended.
+   *
+   * @returns {FormData} Same FormData object with uploadable files
+   *                     appended.
+   */
   async appendFilesToForm(form) {
     const promises = [];
     const tmp = this.getGoodFiles();
 
-    for (const file of tmp) {
-      promises.push(Promise.resolve(form.append('File', file)));
+    for (const fileData of tmp) {
+      promises.push(
+        Promise.resolve(form.append('File', fileData._file, fileData._name)),
+      );
     }
 
     await Promise.all(promises);
@@ -1163,18 +1179,14 @@ export class FileSelectList {
    *
    * @returns {boolean}
    */
-  tooBig() {
-    return (this._totalSize > this._config.maxTotalSize);
-  }
+  tooBig() { return (this._totalSize > this._config.maxTotalSize); }
 
   /**
    * Whether or not there are already too many files selected
    *
    * @returns {boolean}
    */
-  tooMany() {
-    return (this._fileList.length > this._config.maxFileCount);
-  }
+  tooMany() { return (this._fileList.length > this._config.maxFileCount); }
 
   /**
    * Get the total size in bytes for all the files in the list
@@ -1224,15 +1236,15 @@ export class FileSelectList {
     return this._comms.removeWatcher(event, id);
   }
 
-  removeWatchersById(id) {
-    return this._comms.removeWatchersById(id);
+  removeWatchersByID(id) {
+    return this._comms.removeWatchersByID(id);
   }
 
   /**
    * Remove bad files AND (optionally) there are too many files,
-   * remove suplus files plus, if the total upload size is too large
-   * remove the last file, until the upload size is below the
-   * maximum allowed.
+   * Remove suplus files plus, if the total upload size is too large
+   * Recursively remove the last file, until the upload size is below
+   * the maximum allowed.
    *
    * @param {boolean} deleteExcess Whether or not to delete files
    *                               that cause `FileSelectDatatooBig()`
@@ -1287,10 +1299,7 @@ export class FileSelectList {
 
     if (outGoing !== null) {
       this._fileList = this._fileList.filter((fileData) => (fileData.id !== id)).map(resetPos);
-      this._fileList = this._fileList.map((item, i) => {
-        item.position = i;
-        return item;
-      });
+
       this._deleteBadFile(id);
 
       this._calculateTotal();
@@ -1304,6 +1313,7 @@ export class FileSelectList {
   deleteAll() {
     this._fileList = [];
     this._totalSize = 0;
+    this._dispatch('deleteAll', Date.now());
   }
 
   /**
@@ -1469,7 +1479,7 @@ export class FileSelectList {
     const tmp = this.getFile(id);
 
     if (tmp !== null) {
-      tmp.replace(file);
+      tmp.replaceFile(file);
 
       this._processSingleFileInner(tmp);
       this._addBadFile(id);

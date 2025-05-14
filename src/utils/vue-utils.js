@@ -307,12 +307,9 @@ export const setAllToFalse = (obj) => {
  *
  * @returns {boolean} TRUE if event was triggered by a disabled save button
  */
-export const saveAttemptedDetected = (event) => (typeof event !== 'undefined'
-  && event !== null
-  && typeof event.relatedTarget !== 'undefined'
-  && event.relatedTarget !== null
-  && event.relatedTarget.tagName === 'BUTTON'
-  && event.relatedTarget.className.includes('save--disabled')
+export const saveAttemptedDetected = (event) => (
+  event?.relatedTarget?.tagName === 'BUTTON'
+  && event?.relatedTarget?.className?.includes('save--disabled')
 );
 
 /**

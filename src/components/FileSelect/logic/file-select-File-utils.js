@@ -1,5 +1,5 @@
-export const getImageSrc = (file) => {
-  return new Promise((resolve, reject) => {
+export const getImageSrc = (file) => new Promise(
+  (resolve, reject) => {
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -8,8 +8,10 @@ export const getImageSrc = (file) => {
 
     reader.onerror = () => {
       reject(reader.error);
-    }
+    };
 
     reader.readAsDataURL(file);
-  });
-};
+  },
+);
+
+export default getImageSrc;

@@ -6,7 +6,8 @@
       :file-list="selectedFiles"
       :id="inputID"
       :label="label"
-      :multi="multiple" />
+      :multi="multiple"
+      small />
     <dialog
       class="file-select-ui-modal"
       ref="fileSelectUI">
@@ -23,6 +24,7 @@
           :accept-types="acceptTypes"
           :id="listID"
           :file-list="selectedFiles"
+          :key="resetNow"
           :multi="multiple"
           :no-move="noMove"
           v-on:cancel="handleCancel"
@@ -44,7 +46,7 @@
       confirm-txt="Yes"
       cancel-txt="No"
       heading="Are you sure?"
-      :show-modal="showConfirm"
+      :open="showConfirm"
       v-on:submit="doConfirmCancel"
       v-on:cancel="handleCancelConfirm" />
   </div>
@@ -244,6 +246,7 @@ const noResize = ref(false);
 const ePre = ref(null);
 const preveiwFileId = ref('');
 const showConfirm = ref(false);
+const resetNow = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -272,12 +275,14 @@ const addedWatcher = (data) => {
 
 const noResizeWatcher = (data) => { noResize.value = (data !== false); };
 
-const notAddedWatcher = (data) => {
+const notAddedWatcher = () => {
   previewing.value = false;
   doShowModal(fileSelectUI.value);
 };
 
 const toBeAddedWatcher = (data) => { previewing.value = (data === 1); };
+
+const deleteAllWatcher = (now) => { resetNow.value = now; };
 
 const initFiles = () => {
   selectedFiles.value = new FileSelectList(
@@ -305,6 +310,7 @@ const initFiles = () => {
   );
 
   selectedFiles.value.addWatcher('added', props.id, addedWatcher);
+  selectedFiles.value.addWatcher('deleteAll', props.id, deleteAllWatcher);
   selectedFiles.value.addWatcher('noResize', props.id, noResizeWatcher);
   selectedFiles.value.addWatcher('notadded', props.id, notAddedWatcher);
   selectedFiles.value.addWatcher('toBeAdded', props.id, toBeAddedWatcher);

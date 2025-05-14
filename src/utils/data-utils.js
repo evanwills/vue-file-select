@@ -116,7 +116,7 @@ export const emptyOrNull = (input) => {
  * @returns {boolean} TRUE if data is assumed to represent a child.
  *                    FALSE otherwise
  */
-export const isChild = (data) => (typeof data.SchoolName !== 'undefined');
+export const isChild = (data) => (typeof data?.SchoolName !== 'undefined');
 
 export const getDisplayName = (user) => { // eslint-disable-line arrow-body-style
   return (typeof user.ApprovedDisplayName === 'string' && user.ApprovedDisplayName.trim() !== '')
@@ -319,7 +319,7 @@ export const isNonEmptyStr = (obj, prop) => {
     return (obj.trim() !== '');
   }
 
-  return (typeof obj[prop] === 'string' && obj[prop].trim() !== '');
+  return (isObj(obj) && typeof obj[prop] === 'string' && obj[prop].trim() !== '');
 };
 
 const _objectsAreSameArray = (obj1, obj2) => {

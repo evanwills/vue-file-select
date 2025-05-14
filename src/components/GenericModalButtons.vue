@@ -23,9 +23,53 @@
 
 <script setup>
 const props = defineProps({
+  /**
+   * Text to show in cancel button (Default: "Cancel")
+   *
+   * > __Note:__ If `cancelBtnTxt` is empty, it will not be rendered
+   *
+   * @property {string} cancelBtnTxt
+   */
   cancelBtnTxt: { type: String, required: false, default: 'Cancel' },
+
+  /**
+   * Text to show in confirm button (Default: "" - empty string)
+   *
+   * > __Note:__ If `confirmBtnTxt` is empty, it will not be rendered
+   *
+   * @property {string} confirmBtnTxt
+   */
   confirmBtnTxt: { type: String, required: false, default: '' },
+
+  /**
+   * Whether or not confirm button should be rendered as dangerous
+   * (i.e. red)
+   *
+   * @property {boolean} confirmDanger
+   */
+  confirmDanger: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not confirm button should be rendered as disabled
+   * (i.e. have cursor of forbidden)
+   *
+   * @property {boolean} confirmDisabled
+   */
+  confirmDisabled: { type: Boolean, required: false, default: false },
+
+  /**
+   * Text to be shown by assistive technologies to provide better
+   * context for the button's action
+   *
+   * @property {string} srOnly
+   */
   srOnly: { type: String, required: true },
+
+  /**
+   * Value to be emitted with the button click event
+   *
+   * @property {string} value
+   */
   value: { type: String, required: false, default: '' },
 });
 

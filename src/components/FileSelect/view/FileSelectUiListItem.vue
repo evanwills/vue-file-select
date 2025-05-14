@@ -248,7 +248,7 @@ const handleEndProcessingImage = async (data) => {
 
 const handleImageMetaSet = async (data) => {
   if (data === props.data.id) {
-    _name.value = props.data.name;
+    setFileMeta();
   }
 };
 

@@ -2,7 +2,7 @@
   <dialog
     class="generic-modal"
     ref="genericDialogModal"
-    v-on:keyup="handleKey"
+    v-on:cancel="handleCancel"
     v-on:keydown="handleKey"
     v-on:keypress="handleKey">
     <!--
@@ -47,8 +47,45 @@ const emit = defineEmits(['close']);
 // START: Properties/attributes
 
 const props = defineProps({
-  open: { type: Boolean, required: true },
+  /**
+   * Override the default max width of the modal
+   *
+   * Options are:
+   * * 'sm' - 368px (23rem)
+   * * 'md' (default) - 404px (25.25rem)
+   * * 'lg' - 440px (27.5rem)
+   * * 'xl' - 476px (29.75)
+   *
+   * @property {string} maxWidth
+   */
+  maxWidth: { type: String, required: false, default: 'base' },
+
+  /**
+   * Whether or not this `<generic-modal>` has one or more sibling
+   * `<generic-modal>` either side of it.
+   *
+   * There is a known browser bug in both Chrome & Firefox where if
+   * two modals are rendered side by side, the placement second modal
+   * is fixed to the bottom of the window.
+   *
+   * @property {boolean} multi
+   */
+  multi: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not the user is prevented from closing this modal
+   * usually because a loading state is being shown.
+   *
+   * @property {boolean} noManualClose
+   */
   noManualClose: { type: Boolean, required: false, default: false },
+
+  /**
+   * Whether or not this dialogue is open in "modal" mode
+   *
+   * @property {boolean} open
+   */
+  open: { type: Boolean, required: true },
 });
 
 /**
@@ -94,9 +131,17 @@ const handleManualClose = (event) => {
   }
 };
 
-const handleKey = (event) => {
-  if (props.noManualClose === true && event.key === 'Escape') {
+const handleCancel = (event) => {
+  if (props.noManualClose === true) {
     event.preventDefault();
+  } else {
+    emit('close', 'close');
+  }
+};
+
+const handleKey = (event) => {
+  if (event.key === 'Escape') {
+    handleCancel(event);
   }
 };
 

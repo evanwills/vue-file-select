@@ -144,19 +144,21 @@ const updateBadFile = (data) => {
 const resetFiles = () => {
   total.value = props.fileList.getFileCount();
   files.value = props.fileList.getAllFilesRaw();
-}
+  badFile.value = [];
+  focusIndex.value = 0;
+};
 
 const toBeAdded = () => {
   focusIndex.value = total.value;
-}
+};
 
-const deletedWatcher = (data) => {
+const deletedWatcher = () => {
   resetFiles();
 
   badFile.value = [];
 
   if (focusIndex.value >= total.value) {
-    focusIndex.value = total.value -1;
+    focusIndex.value = total.value - 1;
   }
 };
 
@@ -243,7 +245,7 @@ onUpdated(() => {
 });
 
 onBeforeUnmount(() => {
-  props.fileList.removeWatchersById(props.id);
+  props.fileList.removeWatchersByID(props.id);
 });
 
 //  END:  Lifecycle methods

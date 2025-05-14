@@ -1,6 +1,6 @@
 <template>
   <label
-    class="file-select-ui__btn"
+    :class="labelClass"
     :for="id"
     type="button">{{ label }}</label>
   <input
@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import { onBeforeMount, ref } from 'vue';
+import { computed, onBeforeMount, ref } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
 import { isNonEmptyStr } from '../../../utils/data-utils';
 
@@ -30,10 +30,12 @@ const componentName = 'file-select-ui-input';
 const props = defineProps({
   acceptTypes: { type: String, required: true },
   fileList: { type: Object, required: true },
+  class: { type: String, required: false, default: 'btn-sec-arrow_upward-rt' },
   id: { type: String, required: true },
   label: { type: String, required: true },
   multi: { type: Boolean, required: false, default: false },
   replaceId: { type: String, required: false, default: '' },
+  small: { type: Boolean, required: false, default: false },
 });
 
 //  END:  Props
@@ -48,6 +50,8 @@ const allowMulti = ref(true);
 //  END:  Local state
 // ------------------------------------------------------------------
 // START: Computed helpers
+
+const labelClass = computed(() => `file-select-ui__btn ${props.class}`);
 
 //  END:  Computed helpers
 // ------------------------------------------------------------------

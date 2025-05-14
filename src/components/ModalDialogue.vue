@@ -1,8 +1,9 @@
 <template>
   <GenericModal
     class="modal-dialogue"
+    :multi="multi"
     :no-manual-close="loading"
-    :open="open"
+    :open="isOpen"
     v-on:close="emitAction($event, 'cancel')">
     <ModalContent
       aria-live="polite"
@@ -14,7 +15,8 @@
       :key="mode"
       :loading="loading"
       :m-id="getModalID"
-      :ok="ok" />
+      :ok="ok"
+      :success="success" />
 
     <GenericModalButtons
       v-if="!loading && (mode === 'comfirm' || !noMainClose)"
@@ -56,9 +58,22 @@ const props = defineProps({
   loading: { type: Boolean, required: false, default: false },
   mId: { type: String, required: false, default: '' },
   mode: { type: String, required: false, default: '' },
+
+  /**
+   * Whether or not this `<generic-modal>` has one or more sibling
+   * `<generic-modal>` either side of it.
+   *
+   * There is a known browser bug in both Chrome & Firefox where if
+   * two modals are rendered side by side, the placement second modal
+   * is fixed to the bottom of the window.
+   *
+   * @property {boolean} multi
+   */
+  multi: { type: Boolean, required: false, default: false },
   noMainClose: { type: Boolean, required: false, default: false },
   ok: { type: Boolean, required: false, default: false },
-  showModal: { type: Boolean, required: false, default: false },
+  open: { type: Boolean, required: false, default: false },
+  success: { type: Boolean, required: false, default: false },
 });
 
 //  END:  Properties/attributes
@@ -74,7 +89,7 @@ const props = defineProps({
  * @returns {string}
  */
 const ePre = ref(null);
-const open = ref(props.showModal);
+const isOpen = ref(props.open);
 
 //  END:  Local state
 // --------------------------------------------------
@@ -117,7 +132,7 @@ const getModalID = computed(() => `${props.mId}--dialogue-modal`);
 
 const emitAction = (_event, action) => {
   if (action === 'cancel') {
-    open.value = false;
+    isOpen.value = false;
   }
   emit(action, props.value);
 };
@@ -126,7 +141,7 @@ const emitAction = (_event, action) => {
 // --------------------------------------------------
 // START: Watcher methods
 
-watch(() => props.showModal, (newVal) => { open.value = newVal; });
+watch(() => props.open, (newVal) => { isOpen.value = newVal; });
 
 //  END:  Watcher methods
 // --------------------------------------------------
@@ -139,6 +154,3 @@ onBeforeMount(() => {
 //  END:  Lifecycle events
 // --------------------------------------------------
 </script>
-
-<style lang="css" scoped>
-</style>

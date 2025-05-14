@@ -203,8 +203,8 @@ onBeforeMount(() => {
 });
 
 onUnmounted(() => {
-  props.fileList.removeWatchersById('imageSrcSet', props.id);
-})
+  props.fileList.removeWatchersByID('imageSrcSet', props.id);
+});
 
 //  END:  Lifecycle methods
 // ------------------------------------------------------------------

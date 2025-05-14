@@ -40,28 +40,6 @@ export class IBRimageProcessor extends ImageProcessor {
   // START: Private methods
 
   /**
-   * Get a callback function to pass to `ImageBlobReduce.toBlob().then()`
-   * to handle successful resizing of an image
-   *
-   * @param {FileSelectData} fileData File data object currently being
-   *                                  processed
-   * @returns {Function<{Blob}}}
-   */
-  _processImageBlobThen(file, lastModified) {
-    return (blob) => {
-      this._dispatch('endImgProcessing', file);
-      return new File(
-        [blob],
-        file.name,
-        {
-          type: blob.type,
-          lastModified: file.lastModified,
-        },
-      );
-    };
-  }
-
-  /**
    * Get a callback function to pass to `ImageBlobReduce.toBlob().catch()`
    * to handle failed resizing of an image
    *
@@ -92,6 +70,7 @@ export class IBRimageProcessor extends ImageProcessor {
       );
 
       this._dispatch('endImgProcessing', file);
+
       return new File(
         [blob],
         file.name,
@@ -108,12 +87,13 @@ export class IBRimageProcessor extends ImageProcessor {
         setLocalValue('noResize', 1);
         this._dispatch('noResize', true);
       }
-      file.processing = false; // eslint-disable-line no-param-reassign
-      this._dispatch('endImgProcessing', file);
-    }
 
-    // .then(this._processImageBlobThen(file.name, file.lastModified))
-    //   .catch(this._processImageBlobCatch(file));
+      file.processing = false; // eslint-disable-line no-param-reassign
+
+      this._dispatch('endImgProcessing', file);
+
+      return null;
+    }
   }
 
   //  END:  Private methods
