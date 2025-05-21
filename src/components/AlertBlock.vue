@@ -249,15 +249,13 @@ const symbol = computed(() => {
 
   switch (props.type) {
     case 'info':
-      return String.raw`info`;
-
     case 'warning':
-      return String.raw`warning`;
+    case 'error':
+      return props.type;
 
     case 'success':
-      return String.raw`\e86c`; // check_circle
+      return 'check_circle';
 
-    case 'error':
     default:
       return String.raw`error`;
   }

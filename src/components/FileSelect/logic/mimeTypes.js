@@ -1,3 +1,6 @@
+/**
+ * @var {MimeType} jpeg Mime type info for JPEG files
+ */
 const jpeg = {
   ext: 'jpeg',
   mime: 'image/jpeg',
@@ -5,6 +8,9 @@ const jpeg = {
   type: 'image',
 };
 
+/**
+ * @var {MimeType} tiff Mime type info for TIFF files
+ */
 const tiff = {
   ext: 'tif',
   mime: 'image/tiff',
@@ -12,6 +18,9 @@ const tiff = {
   type: 'image',
 };
 
+/**
+ * @var {MimeType} midi Mime type info for Midi files
+ */
 const midi = {
   ext: 'midi',
   mime: 'audio/x-midi',
@@ -27,7 +36,7 @@ const midi = {
  * * __key:__ the file extension string
  * * __value:__ the file MIME type - used when validating an selected file
  *
- * @var {object} fileTypes
+ * @var {MimeTypeList} fileTypes
  */
 export default {
   bmp: {

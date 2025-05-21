@@ -43,8 +43,9 @@
     <ModalDialogue
       v-if="confirmCancel === true"
       :body="confirmCancelMsg"
-      confirm-txt="Yes"
-      cancel-txt="No"
+      confirm-danger
+      confirm-txt="Stop upload"
+      cancel-txt="Cancel"
       heading="Are you sure?"
       :open="showConfirm"
       v-on:submit="doConfirmCancel"
@@ -291,7 +292,7 @@ const initFiles = () => {
       allowedTypes: acceptTypes.value,
       greyScale: props.greyScale,
       jpegCompression: props.jpegCompression,
-      logging: true,
+      logging: false,
       maxFileCount: props.maxFileCount,
       maxImgPx: props.maxImgPx,
       maxSingleSize: props.maxSingleSize,

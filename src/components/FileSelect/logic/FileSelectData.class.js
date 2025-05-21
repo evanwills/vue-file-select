@@ -320,9 +320,11 @@ export class FileSelectData {
         .then(this._setImageMetaInner(force))
         .then(this._processImage())
         .catch((error) => {
+          // eslint-disable-next-line no-console
           console.group('FileSelectData._setImageMeta()');
+          // eslint-disable-next-line no-console
           console.error('error:', error.message);
-          console.groupEnd();
+          console.groupEnd(); // eslint-disable-line no-console
           throw Error(error);
         });
     }
@@ -483,13 +485,16 @@ export class FileSelectData {
   /**
    * Add another whatcher function
    *
-   * @param {Function} dispatcher A function that can be used as an
-   *                              event handler
-   * @param {string}   id         ID of the dispatcher (so it can be
-   *                              replaced or removed)
-   * @param {boolean}  replace    If a dispatcher already exists,
-   *                              replace it with the new dispatcher
-   *                              function
+   * @param {string|string[]} action  Action/event or list of
+   *                                  actions/events the watcher is
+   *                                  interested in
+   * @param {string}          id      ID of the dispatcher (so it can
+   *                                  be replaced or removed)
+   * @param {Function}        watcher A function that can be used as
+   *                                  an event handler
+   * @param {boolean}         replace If a dispatcher already exists,
+   *                                  replace it with the new
+   *                                  dispatcher function
    *
    * @throws {Error} If dispatcher was not a function
    * @throws {Error} If id was not a string or was empty
@@ -497,7 +502,9 @@ export class FileSelectData {
    *                 and `replace` is FALSE
    */
   addWatcher(action, id, watcher, replace = false) {
-    if (this._comms !== null) {
+    if (this._comms !== null
+      && (this._comms.watcherExists(action, id) === false || replace === true)
+    ) {
       try {
         this._comms.addWatcher(action, id, watcher, replace);
       } catch (error) {

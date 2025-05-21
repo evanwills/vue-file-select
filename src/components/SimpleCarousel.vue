@@ -123,7 +123,7 @@ watch(
 watch(
   () => props.length,
   (newLen, oldLen) => {
-    if (newLen >= pos.value) {
+    if (newLen <= pos.value) {
       pos.value = newLen - 1;
     } else if (oldLen === 0) {
       pos.value = 0;

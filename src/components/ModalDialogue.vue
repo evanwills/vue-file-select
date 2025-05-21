@@ -15,6 +15,7 @@
       :key="mode"
       :loading="loading"
       :m-id="getModalID"
+      :no-icon="noIcon"
       :ok="ok"
       :success="success" />
 
@@ -71,6 +72,7 @@ const props = defineProps({
    */
   multi: { type: Boolean, required: false, default: false },
   noMainClose: { type: Boolean, required: false, default: false },
+  noIcon: { type: Boolean, required: false, default: false },
   ok: { type: Boolean, required: false, default: false },
   open: { type: Boolean, required: false, default: false },
   success: { type: Boolean, required: false, default: false },

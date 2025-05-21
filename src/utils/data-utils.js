@@ -11,12 +11,16 @@
 import { makePossessive } from './general-utils';
 
 /**
- * Get a value, match by the supplied key from local storage or the
- * default value supplied if no value could be retrieved
+ * Store a value in local storage
  *
- * @param {string} key   Local Storage key where value is to be found
- * @param {any}    value Default value if to be returned if no value
- *                       could be retrieved from local storage
+ * > __NOTE:__ This is __NOT__ a pure function
+ *
+ * If local storage is not available this function will do nothing
+ *
+ * @param {string}                     key   Local storage key for
+ *                                           value to be stored
+ * @param {string|number|null|boolean} value Value to be stored in
+ *                                           local storage
  *
  * @returns {void}
  */
@@ -27,14 +31,19 @@ export const setLocalValue = (key, value) => {
 };
 
 /**
- * Get a value, match by the supplied key from local storage or the
- * default value supplied if no value could be retrieved
+ * Retrieve a value in local storage.
  *
- * @param {string} key        Local Storage key where value is to be
- *                            found
- * @param {any}    defaultVal Default value if to be returned if no
- *                            value could be retrieved from local
- *                            storage
+ * If local storage is not available, return the default value.
+ * If local storage is available but the key has not been set, store
+ * the default value in local storage then return it.
+ *
+ * __NOTE:__ This is __NOT__ a pure function
+ *
+ * @param {string}                     key        Local storage key
+ *                                                for value to be
+ *                                                stored
+ * @param {string|number|null|boolean} defaultVal Value to be stored
+ *                                                in local storage
  * @returns {any}
  */
 export const getLocalValue = (key, defaultVal) => {

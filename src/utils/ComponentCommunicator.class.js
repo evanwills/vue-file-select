@@ -92,6 +92,39 @@ export class ComponentCommunicator {
   }
 
   /**
+   * Check whether a watcher has already been set for a given
+   * event/id pair
+   *
+   * @param {string|string[]} event Event name (or list of event
+   *                                names) the watcher wants to be
+   *                                called on
+   * @param {string}          id    ID associated with the watcher
+   *
+   * @returns {boolean} TRUE if a watcher already exists for at least
+   *                    one event/id pair. FALSE if no watcher has
+   *                    been set for any event/id pairs
+   */
+  watcherExists(event, id) {
+    const _id = sanitiseID(id);
+
+    if (Array.isArray(event)) {
+      for (const ev of event) {
+        const _event = sanitise(ev);
+
+        if (this._exists(_event, _id)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    const _event = sanitise(event);
+
+    return this._exists(_event, _id);
+  }
+
+  /**
    * Add a new watcher function to the list of watcher functions that
    * are called each time an event is dispatched
    *

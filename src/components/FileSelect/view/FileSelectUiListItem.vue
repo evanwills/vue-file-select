@@ -1,6 +1,5 @@
 <template>
-  <li>
-    <p class="f-name"><span v-html="fileName"></span> <span>#{{ id }}</span></p>
+  <li :style="wrapWidth">
     <div class="data">
       <LoadingSpinner v-if="processing" class="img" />
       <img
@@ -9,29 +8,22 @@
         class="img"
         :key="imgSrcReset"
         :src="imgSrc" />
-      <div
-        v-else
-        class="h-80 bg-grey-50 flex flex-col justify-center items-center text-body-md  gap-y-1
-          before:font-symbol before:text-[2rem] before:leading-8 before:content-['description']">
+      <div v-else>
         No preview available
       </div>
 
-      <span class="data-info">
-        <span class="data-info-child">
-          <span class="l">Size:</span> <span class="v">{{ s.size }}{{ s.type }}</span>
-          (<span class="l">Original:</span> <span class="v">{{ ogS.size }}{{ ogS.type }}</span>)
-        </span>
-        <span class="data-info-child" v-if="data.isImage">
-          <span class="l">Width:</span> <span class="v">{{ w }}px</span>
-          (<span class="l">Original:</span> <span class="v">{{ ogW }}px</span>)<br />
-          <span class="l">Height:</span> <span class="v">{{ h }}px</span>
-          (<span class="l">Original:</span> <span class="v">{{ ogH }}px</span>)
-        </span>
-        <span class="data-info-child data-info-child--position">{{ pos + 1 }} of {{ total }}</span>
-      </span>
+      <FileSelectUIFileMetadata
+        :height="height"
+        :is-image="data.isImage"
+        :og-height="ogHeight"
+        :og-size="ogSize"
+        :og-width="ogWidth"
+        :pos="pos"
+        :size="size"
+        :width="width" />
     </div>
 
-    <p :class="btnListClass">
+    <p :class="btnWrapClass">
       <span v-if="noMove === false">
         <button
           v-if="canMoveUp"
@@ -65,7 +57,8 @@
       </button>
 
       <span v-if="noMove === false">
-        <button v-if="canMoveUp"
+          <button
+            v-if="canMoveUp"
           class="move move-limit move-start"
           :disabled="!isFocused"
           :tabindex="tabIndex"
@@ -79,11 +72,24 @@
           class="move move-limit move-far move-end"
           :disabled="!isFocused"
           :tabindex="tabIndex"
-          type="button" v-on:click="emitMoveToEnd">
+            type="button"
+            v-on:click="emitMoveToEnd">
           <span>Move {{ name }} to end</span>
         </button>
       </span>
     </p>
+
+    <div :class="infoWrapClass">
+      <p v-if="ok === true" :class="fileNameClass" v-html="fileName"></p>
+      <p v-else :class="fileNameClass">
+        <button
+          type="button"
+          v-html="fileName"
+          v-on:click="emitDelete">
+        </button>
+      </p>
+      <p class="text-body-md">{{ pos + 1 }} of {{ total }}</p>
+    </div>
   </li>
 </template>
 
@@ -95,8 +101,8 @@ import {
   ref,
 } from 'vue';
 import { getEpre } from '../../../utils/general-utils';
-import { formatBytes, formatNum } from '../logic/file-select-utils';
 import LoadingSpinner from '../../LoadingSpinner.vue';
+import FileSelectUIFileMetadata from './FileSelectUIFileMetadata.vue';
 
 // ------------------------------------------------------------------
 // START: Vue utils
@@ -148,19 +154,7 @@ const imgSrcReset = ref(0);
 // ------------------------------------------------------------------
 // START: Computed state
 
-const canMoveUp = computed(() => (props.pos > 0));
-const canMoveDown = computed(() => ((props.pos + 1) < props.total));
-
-const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '')
-  .substring(0, 128).replace(/(?=\.)/g, '<wbr />'));
-
-const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
-  return (props.isFocused)
-    ? undefined
-    : -1;
-});
-
-const btnListClass = computed(() => {
+const btnWrapClass = computed(() => {
   const tmp = 'btn-list';
 
   return (props.isFocused)
@@ -168,35 +162,23 @@ const btnListClass = computed(() => {
     : tmp;
 });
 
+const canMoveUp = computed(() => (props.pos > 0));
+const canMoveDown = computed(() => ((props.pos + 1) < props.total));
+
+const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '')
+  .substring(0, 128).replace(/(?=\.)/g, '<wbr />'));
+
+const fileNameClass = computed(() => '');
+
+const infoWrapClass = computed(() => '');
+
+const tabIndex = computed(() => { // eslint-disable-line arrow-body-style
+  return (props.isFocused)
+    ? undefined
+    : -1;
+});
+
 const wrapWidth = computed(() => `width: ${100 / props.total}%;`);
-
-const s = computed(() => formatBytes(size.value));
-const ogS = computed(() => formatBytes(ogSize.value));
-
-const w = computed(() => {
-  return (typeof width.value === 'number')
-    ? formatNum(width.value)
-    : 0;
-});
-
-const h = computed(() => {
-  return (typeof height.value === 'number')
-    ? formatNum(height.value)
-    : 0;
-});
-
-const ogW = computed(() => {
-  return (typeof ogWidth.value === 'number')
-    ? formatNum(ogWidth.value)
-    : 0;
-});
-
-const ogH = computed(() => {
-  return (typeof ogHeight.value === 'number')
-    ? formatNum(ogHeight.value)
-    : 0;
-});
-
 
 //  END:  Computed state
 // ------------------------------------------------------------------
@@ -326,14 +308,6 @@ button:disabled {
   display: flex;
   gap: 1rem;
 }
-.v {
-  font-family: 'Courier New', Courier, monospace;
-}
-.l {
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  font-weight: bold;
-  font-size: 0.86rem;
-}
 p {
   margin: 0.5rem 0 0;
 }
@@ -345,23 +319,6 @@ p:last-child {
   width: 12rem;
   height: 12rem;
   object-fit: contain;
-}
-.data {
-  display: flex;
-  justify-content: space-between;
-  margin: 1rem auto;
-  column-gap: 1rem;
-  width: auto;
-}
-.data > p {
-  width: auto;
-}
-.data-info-child {
-  display: block;
-  width: auto;
-}
-.data-info-child + .data-info-child {
-  margin-top: 0.5rem;
 }
 button {
   position: relative;

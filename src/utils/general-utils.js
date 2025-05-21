@@ -131,7 +131,7 @@ export const isValidFileType = (file) => {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
 
-  const tmpType = (typeof file.type === 'string')
+  const tmpType = (typeof file?.type === 'string')
     ? file.type.trim()
     : '';
 

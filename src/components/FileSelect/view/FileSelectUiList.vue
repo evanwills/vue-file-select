@@ -42,7 +42,7 @@
         :body="fileList.getMessage('tooMany')"
         type="error" />
       <AlertBlock
-        v-if="badFile.includes('tooBig')"
+        v-if="badFile.includes('tooHeavy')"
         :body="fileList.getMessage('tooBigFile')"
         type="error" />
       <AlertBlock
@@ -63,8 +63,14 @@
         :id="inputID"
         :label="inputLabel"
         :multi="multi" />
-      <button class="file-select-ui__btn" type="button" v-on:click="handleUpload">Upload</button>
-      <button class="file-select-ui__btn" type="button" v-on:click="handleCancel">Cancel</button>
+      <button
+        class="file-select-ui__btn"
+        type="button"
+        v-on:click="handleUpload">Upload</button>
+      <button
+        class="file-select-ui__btn"
+        type="button"
+        v-on:click="handleCancel">Cancel</button>
     </p>
   </div>
 </template>
@@ -112,6 +118,8 @@ const init = ref(false);
 const focusIndex = ref(0);
 const badFile = ref([]);
 const total = ref(0);
+const stillAdding = ref(0);
+const nextFocus = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -126,50 +134,55 @@ const showErrors = computed(() => (props.fileList !== null
 
 const inputID = computed(() => `${props.id}--add-files`);
 
+const canUpload = computed(() => (total.value > 0 && badFile.value.length === 0));
+
 //  END:  Computed state
 // ------------------------------------------------------------------
 // START: Helper methods
 
-const updateBadFile = (data) => {
-  badFile.value = [];
-
-  if (data.invalid === true) {
-    badFile.value.push('invalid');
-  }
-  if (data.oversize === true) {
-    badFile.value.push('tooBig');
-  }
+const updateBadFiles = () => {
+  badFile.value = props.fileList.getBadFileIssues();
 };
 
 const resetFiles = () => {
   total.value = props.fileList.getFileCount();
   files.value = props.fileList.getAllFilesRaw();
-  badFile.value = [];
-  focusIndex.value = 0;
+  updateBadFiles();
 };
 
-const toBeAdded = () => {
+const toBeAdded = (data) => {
+  stillAdding.value = (data);
+  nextFocus.value = total.value;
   focusIndex.value = total.value;
 };
 
 const deletedWatcher = () => {
   resetFiles();
 
-  badFile.value = [];
-
   if (focusIndex.value >= total.value) {
     focusIndex.value = total.value - 1;
   }
 };
 
-const addedWatcher = (data) => {
+const addedWatcher = () => {
+  stillAdding.value -= 1;
+
+  if (stillAdding.value === 0) {
+    focusIndex.value = nextFocus.value;
+  }
+
   resetFiles();
-  updateBadFile(data);
 };
 
-const notAddedWatcher = (data) => {
+const notAddedWatcher = () => {
+  stillAdding.value -= 1;
   files.value = props.fileList.getAllFilesRaw();
-  updateBadFile(data);
+
+  updateBadFiles();
+
+  if (stillAdding.value === 0) {
+    focusIndex.value = nextFocus.value;
+  }
 };
 
 const processCountWatcher = (data) => {
@@ -204,8 +217,15 @@ const setWatcher = () => {
 // START: Event handler methods
 
 const handleUpload = () => {
-  if (showErrors.value === false) {
+  if (showErrors.value === false && canUpload.value === true) {
     emit('upload');
+  } else {
+    for (let a = 0; a < files.value.length; a += 1) {
+      if (files.value[a].ok === false) {
+        focusIndex.value = a;
+        break;
+      }
+    }
   }
 };
 
@@ -214,6 +234,7 @@ const handleCancel = () => {
 };
 
 const deleteFile = (event) => {
+  nextFocus.value = focusIndex.value;
   props.fileList.deleteFile(event);
 };
 
@@ -223,6 +244,7 @@ const moveFile = ({ id, relPos }) => {
 
 const carouselFocus = (event) => {
   focusIndex.value = event;
+  nextFocus.value = focusIndex.value;
 };
 
 //  END:  Event handler methods

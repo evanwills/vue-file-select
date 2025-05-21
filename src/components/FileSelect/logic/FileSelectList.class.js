@@ -660,7 +660,7 @@ export class FileSelectList {
    *
    * @returns {void}
    */
-  _calculateTotal(fileData) {
+  _calculateTotal() {
     let sum = 0;
     for (const _file of this._fileList) {
       sum += _file.size;
@@ -672,7 +672,6 @@ export class FileSelectList {
       this._dispatch(
         'toobig',
         {
-          name: fileData.name,
           size: this._config.totalSize,
           max: this._config.maxTotalSize,
         },
@@ -721,7 +720,7 @@ export class FileSelectList {
 
     this._checkTooMany(fileData.name);
 
-    this._calculateTotal();
+    this._calculateTotal(fileData);
 
     this._dispatch('allcomplete', (this._processingCount === 0));
   }
@@ -755,6 +754,52 @@ export class FileSelectList {
     }
   }
 
+  async _handleAdding(fileData) {
+    this._addFileToList(fileData);
+
+    this._processSingleFileInner(fileData);
+    this._dispatch(
+      'added',
+      {
+        cannotadd: false,
+        id: fileData.id,
+        invalid: fileData.invalid,
+        isImage: fileData.isImage,
+        name: fileData.name,
+        ogName: fileData.ogName,
+        oversize: fileData.tooHeavy,
+      },
+    );
+
+    this._calculateTotal(fileData);
+  }
+
+  _handleNotOK(file, fileData) {
+    this._dispatch(
+      'notadded',
+      {
+        name: file.name,
+        cannotadd: true,
+        oversize: fileData.tooHeavy,
+        invalid: fileData.invalid,
+      },
+    );
+  }
+
+  _handleOverSize(file) {
+    this._dispatch(
+      'notadded',
+      {
+        name: file.name,
+        cannotadd: true,
+        tooBig: this.tooBig(),
+        tooMany: this.tooMany(),
+        size: this._totalSize,
+        count: this._fileList.length,
+      },
+    );
+  }
+
   /**
    * Process a single file
    *
@@ -775,50 +820,15 @@ export class FileSelectList {
       );
 
       if (this._config.omitInvalid === false || fileData.ok === true) {
-        this._addFileToList(fileData);
-
-        this._processSingleFileInner(fileData);
-        this._dispatch(
-          'added',
-          {
-            cannotadd: false,
-            id: fileData.id,
-            invalid: fileData.invalid,
-            isImage: fileData.isImage,
-            name: fileData.name,
-            ogName: fileData.ogName,
-            oversize: fileData.tooHeavy,
-          },
-        );
-
+        this._handleAdding(fileData);
         return true;
       }
 
-      this._dispatch(
-        'notadded',
-        {
-          name: file.name,
-          cannotadd: true,
-          oversize: fileData.tooHeavy,
-          invalid: fileData.invalid,
-        },
-      );
-
+      this._handleNotOK(file, fileData);
       return false;
     }
 
-    this._dispatch(
-      'notadded',
-      {
-        name: file.name,
-        cannotadd: true,
-        tooBig: this.tooBig(),
-        tooMany: this.tooMany(),
-        size: this._totalSize,
-        count: this._fileList.length,
-      },
-    );
-
+    this._handleOverSize(file);
     return false;
   }
 
@@ -986,6 +996,30 @@ export class FileSelectList {
    * @returns {FileDataItem[]}
    */
   getBadFiles() { return this.getAllFiles(false); }
+
+  getBadFileIssues() {
+    if (this.badFileCount() === 0) {
+      return [];
+    }
+    const issues = ['invalid', 'tooHeavy', 'tooLarge'];
+    const output = [];
+    for (const file of this._fileList) {
+      // Go through all files to see if any of them have any issues
+      for (const issue of issues) {
+        if (file[issue] === true && output.includes(issue) === false) {
+          // This file has an issue we haven't seen before
+          output.push(issue);
+
+          if (output.length === 3) {
+            // we've got the full set, no need to keep trying
+            return output;
+          }
+        }
+      }
+    }
+
+    return output;
+  }
 
   /**
    * Get the dispatcher function being used in this instance
@@ -1216,11 +1250,15 @@ export class FileSelectList {
    *                 and `replace` is FALSE
    */
   addWatcher(event, id, watcher, replace = false) {
-    try {
-      this._comms.addWatcher(event, id, watcher, replace);
-    } catch (error) {
-      console.error('error.message:', error.message);
-      // throw Error error message
+    if (this._comms !== null
+      && (this._comms.watcherExists(event, id) === false || replace === true)
+    ) {
+      try {
+        this._comms.addWatcher(event, id, watcher, replace);
+      } catch (error) {
+        console.error('error.message:', error.message);
+        // throw Error error message
+      }
     }
   }
 
@@ -1260,6 +1298,7 @@ export class FileSelectList {
     this._calculateTotal();
 
     if (deleteExcess !== true) {
+      this._fileList = this._fileList.map(resetPos);
       return true;
     }
 
@@ -1274,10 +1313,14 @@ export class FileSelectList {
 
         this._calculateTotal();
         if (this.tooBig() === false) {
+          this._fileList = this._fileList.map(resetPos);
           return true;
         }
       }
     }
+
+    this._fileList = this._fileList.map(resetPos);
+
     return false;
   }
 
