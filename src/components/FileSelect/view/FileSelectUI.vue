@@ -7,7 +7,8 @@
       :id="inputID"
       :label="label"
       :multi="multiple"
-      small />
+      small
+      v-on:addfiles="handleFilesAdded" />
     <dialog
       class="file-select-ui-modal"
       ref="fileSelectUI">
@@ -56,12 +57,12 @@
 <script setup>
 import {
   computed,
+  nextTick,
   onBeforeMount,
   onMounted,
   ref,
   watch,
 } from 'vue';
-import { getEpre } from '../../../utils/general-utils';
 import { doCloseModal, doShowModal } from '../../../utils/vue-utils';
 import { FileSelectList } from '../logic/FileSelectList.class';
 import { getAllowedTypes } from '../logic/file-select-utils';
@@ -69,11 +70,29 @@ import FileSelectUiList from './FileSelectUiList.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import FileSelectUiPreview from './FileSelectUiPreview.vue';
 import ModalDialogue from '../../ModalDialogue.vue';
+import ConsoleLogger from '../../../utils/ConsoleLogger.class';
 
 // ------------------------------------------------------------------
 // START: Vue utils
 
-const emit = defineEmits(['upload']);
+const emit = defineEmits([
+  /**
+   * `confirm` events indicate that the user selected all the files
+   * they wish to upload and is ready to continue with their
+   * submission.
+   *
+   * @property {string} confirm
+   */
+  'confirm',
+  /**
+   * `cancel` events indicate that the user is not ready to upload
+   * anything and has terminated their selection without choosing
+   * any files.
+   *
+   * @property {string} cancel
+   */
+  'cancel',
+]);
 
 //  END:  Vue utils
 // ------------------------------------------------------------------
@@ -244,10 +263,12 @@ const acceptTypes = ref('image/jpeg, image/png application/msdoc');
 const fileSelectCanvas = ref(null);
 const fileSelectUI = ref(null);
 const noResize = ref(false);
-const ePre = ref(null);
 const preveiwFileId = ref('');
 const showConfirm = ref(false);
 const resetNow = ref(0);
+const init = ref(true);
+const _cLog = ref(null);
+const noMulti = ref(false);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -262,28 +283,44 @@ const getID = (tag) => `${tag}--${props.id}`;
 const inputID = computed(() => getID('fileInput'));
 const listID = computed(() => getID('fileList'));
 const previewID = computed(() => getID('preview'));
-const multiple = computed(() => props.maxFileCount > 1);
+const multiple = computed(() => (noMulti.value === false && props.maxFileCount > 1));
 
 //  END:  Computed state
 // ------------------------------------------------------------------
 // START: Helper methods
 
 const addedWatcher = (data) => {
+  _cLog.value.before('addedWatcher', { refs: ['previewing', 'preveiwFileId'], local: { data } });
   previewing.value = (previewing.value === true && data.isImage === true);
   preveiwFileId.value = data.id;
   doShowModal(fileSelectUI.value);
+  _cLog.value.after('addedWatcher', { refs: ['previewing', 'preveiwFileId'] });
 };
 
-const noResizeWatcher = (data) => { noResize.value = (data !== false); };
+const noResizeWatcher = (data) => {
+  _cLog.value.before('noResizeWatcher', { refs: 'noResize', local: { data } });
+  noResize.value = (data !== false);
+  _cLog.value.after('noResizeWatcher', { refs: 'noResize' });
+};
 
 const notAddedWatcher = () => {
+  _cLog.value.before('notAddedWatcher', { refs: 'previewing' });
   previewing.value = false;
   doShowModal(fileSelectUI.value);
+  _cLog.value.after('notAddedWatcher', { refs: 'previewing' });
 };
 
-const toBeAddedWatcher = (data) => { previewing.value = (data === 1); };
+const toBeAddedWatcher = (data) => {
+  _cLog.value.before('toBeAddedWatcher', { refs: 'previewing', local: { data } });
+  previewing.value = (data === 1);
+  _cLog.value.after('toBeAddedWatcher', { refs: 'previewing' });
+};
 
-const deleteAllWatcher = (now) => { resetNow.value = now; };
+const deleteAllWatcher = (now) => {
+  _cLog.value.before('deleteAllWatcher', { refs: 'resetNow', local: { now } });
+  resetNow.value = now;
+  _cLog.value.after('deleteAllWatcher', { refs: 'resetNow' });
+};
 
 const initFiles = () => {
   selectedFiles.value = new FileSelectList(
@@ -312,6 +349,7 @@ const initFiles = () => {
 
   selectedFiles.value.addWatcher('added', props.id, addedWatcher);
   selectedFiles.value.addWatcher('deleteAll', props.id, deleteAllWatcher);
+  selectedFiles.value.addWatcher('duplicate', props.id, notAddedWatcher);
   selectedFiles.value.addWatcher('noResize', props.id, noResizeWatcher);
   selectedFiles.value.addWatcher('notadded', props.id, notAddedWatcher);
   selectedFiles.value.addWatcher('toBeAdded', props.id, toBeAddedWatcher);
@@ -327,10 +365,17 @@ const retryInitFiles = (_initFiles, files, canvas) => () => {
   }
 };
 
-const doConfirmCancel = () => {
-  doCloseModal(fileSelectUI.value);
+const doConfirmCancel = async () => {
+  _cLog.value.before('doConfirmCancel', { refs: ['selectedFiles', 'showConfirm'] });
   selectedFiles.value.deleteAll();
+  await nextTick();
+  doCloseModal(fileSelectUI.value);
+  emit('cancel');
   showConfirm.value = false;
+  selectedFiles.value = null;
+  await nextTick();
+  initFiles();
+  _cLog.value.after('doConfirmCancel', { refs: ['selectedFiles', 'showConfirm'] });
 };
 
 //  END:  Helper methods
@@ -338,23 +383,37 @@ const doConfirmCancel = () => {
 // START: Event handler methods
 
 const handleUpload = () => {
-  emit('upload', selectedFiles.value);
+  _cLog.value.before('handleUpload', { refs: '*' });
+  emit('confirm', selectedFiles.value);
   doCloseModal(fileSelectUI.value);
+  _cLog.value.before('handleUpload', { refs: '*' });
 };
 
 const handleCancel = () => {
+  _cLog.value.before('handleCancel', { props: 'confirmCancel', refs: 'showConfirm' });
   if (props.confirmCancel === true) {
     showConfirm.value = true;
   } else {
     doConfirmCancel();
   }
+  _cLog.value.after('handleCancel', { refs: 'showConfirm' });
 };
 
 const handleCancelConfirm = () => {
+  _cLog.value.before('handleCancelConfirm', { refs: 'showConfirm' });
   showConfirm.value = false;
+  _cLog.value.after('handleCancelConfirm', { refs: 'showConfirm' });
 };
 
-const closePreview = () => { previewing.value = false; };
+const closePreview = () => {
+  _cLog.value.before('closePreview', { refs: 'previewing' });
+  previewing.value = false;
+  _cLog.value.after('closePreview', { refs: 'previewing' });
+};
+
+const handleFilesAdded = (event) => {
+  _cLog.value.only('handleFilesAdded', { local: { event } });
+};
 
 //  END:  Event handler methods
 // ------------------------------------------------------------------
@@ -371,10 +430,29 @@ watch(() => props.uploadFailed, (newVal) => {
 // START: Lifecycle methods
 
 onBeforeMount(() => {
-  if (ePre.value === null) {
-    ePre.value = getEpre('FileSelectUI', props.id);
+  if (init.value === true) {
+    init.value = false;
     acceptTypes.value = getAllowedTypes(props.accept);
     acceptTypes.value = acceptTypes.value.map((type) => type.mime).join(', ');
+    if (_cLog.value === null) {
+      _cLog.value = new ConsoleLogger(
+        '<file-select-ui>',
+        props.id,
+        {
+          props: { ...props },
+          refs: {
+            previewing,
+            selectedFiles,
+            acceptTypes,
+            noResize,
+            preveiwFileId,
+            showConfirm,
+            resetNow,
+          },
+        },
+        false,
+      );
+    }
   }
 });
 

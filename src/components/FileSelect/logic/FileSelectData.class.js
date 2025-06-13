@@ -14,6 +14,7 @@ import { ComponentCommunicator } from '../../../ComponentCommunicator.class';
 import { fileIsImage, getImageMetadata } from './image-processor-utils';
 import { getImageSrc } from './file-select-File-utils';
 import { isObj } from '../../../utils/data-utils';
+import ConsoleLogger from '../../../../utils/ConsoleLogger.class';
 
 export class FileSelectData {
   // ----------------------------------------------------------------
@@ -27,9 +28,13 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
+  _cLog = null;
+
   _ext;
 
   _file;
+
+  _force = true;
 
   _id = null;
 
@@ -86,6 +91,7 @@ export class FileSelectData {
 
     this._comms = null;
     this._file = file;
+    this._force = true;
     this._id = nanoid(8);
     this._imgProcessor = imgProcessor;
     this._invalid = false;
@@ -113,6 +119,8 @@ export class FileSelectData {
     if (this._isImage) {
       this._initImage(file);
     }
+
+    this._cLog = new ConsoleLogger('FileSelectData', this._id, { _this: this });
   }
 
   //  END:  Constructor methods
@@ -160,9 +168,18 @@ export class FileSelectData {
   // ----------------------------------------------------------------
   // START: Private method
 
-  _initImage(file) {
-    this._setImageSrc(file);
-    this._setImageMeta(true);
+  async _initImage() {
+    if (this._newFile === true && this._imgProcessor !== null
+      && this._isImage === true && this._ext !== 'svg'
+      && this._processing === false
+    ) {
+      this._force = true;
+      this._dispatch('imageProcessingStart', this._id);
+
+      await this._setImageSrc();
+      await this._setImageMeta();
+      await this._processImage();
+    }
   }
 
   async _setImageSrc() {
@@ -209,7 +226,7 @@ export class FileSelectData {
     }
   }
 
-  _setFileMeta(file, setOg = false) {
+  _setFileMeta(file, setOg = false, replace = false) {
     const newName = getUniqueFileName(file.name, this._id);
 
     if (setOg === true) {
@@ -217,7 +234,7 @@ export class FileSelectData {
       this._ogSize = file.size;
     }
 
-    this._previousName = (typeof this._previousName !== 'string' || typeof this._name !== 'string')
+    this._previousName = (replace === true || typeof this._previousName !== 'string' || typeof this._name !== 'string')
       ? newName
       : this._name;
 
@@ -234,46 +251,32 @@ export class FileSelectData {
    *
    * @returns {Promise<boolean>}
    */
-  _processImage() {
-    if (this._newFile === true && this._imgProcessor !== null
-      && this._isImage === true && this._ext !== 'svg'
-      && this._processing === false
-    ) {
-      return async (resolve) => {
-        this._newFile = false;
-        this._processing = true;
-        this._dispatch('imageProcessingStart', this._id);
+  async _processImage() {
+    this._newFile = false;
+    this._processing = true;
 
-        const tmp = await this._imgProcessor.process(
-          this.file,
-          this.width,
-          this.height,
-        );
+    const tmp = await this._imgProcessor.process(
+      this._file,
+      this.width,
+      this.height,
+    );
 
-        if (tmp instanceof File) {
-          this._file = tmp;
+    if (tmp instanceof File) {
+      this._file = tmp;
 
-          this._setFileMeta(tmp);
+      this._setFileMeta(tmp);
 
-          if (this._ogSize !== this._file.size) {
-            this._dispatch('imageResized', this._id);
-            await this._setImageSrc();
-            await this._setImageMeta();
-          }
-        }
-
-        this._processing = false;
-        this._dispatch('imageProcessingEnd', this._id);
-
-        if (typeof resolve === 'function') {
-          resolve(true);
-        }
-      };
+      if (this._ogSize !== this._file.size) {
+        this._dispatch('imageResized', this._id);
+        await this._setImageSrc();
+        await this._setImageMeta();
+      }
     }
 
-    this._newFile = false;
+    this._processing = false;
+    this._dispatch('imageProcessingEnd', this._id);
 
-    return Promise.resolve(false);
+    return true;
   }
 
   _setImageMetaInner(result, force) {
@@ -304,29 +307,16 @@ export class FileSelectData {
     }
   }
 
-  async _setImageMeta(force = false) {
+  async _setImageMeta() {
     if (this._isImage === true && this._metaWaiting === false) {
       this._metaWaiting = true;
 
       await this._setImageSrc();
 
-      const result = await getImageMetadata(this._src);
+      this._setImageMetaInner(await getImageMetadata(this._src), this._force);
+      this._force = false;
 
-      this._setImageMetaInner(result, force);
-
-      await this._processImage();
-
-      return getImageMetadata(this._src)
-        .then(this._setImageMetaInner(force))
-        .then(this._processImage())
-        .catch((error) => {
-          // eslint-disable-next-line no-console
-          console.group('FileSelectData._setImageMeta()');
-          // eslint-disable-next-line no-console
-          console.error('error:', error.message);
-          console.groupEnd(); // eslint-disable-line no-console
-          throw Error(error);
-        });
+      return true;
     }
 
     return false;
@@ -482,6 +472,15 @@ export class FileSelectData {
     return (this._id === id || this._name === name);
   }
 
+  isSame(fileData, checkSize = true) {
+    const tmp = this.isMatch(fileData.id, fileData.name);
+    if (tmp === false || checkSize === false) {
+      return tmp;
+    }
+
+    return (fileData.ogSize === this._ogSize);
+  }
+
   /**
    * Add another whatcher function
    *
@@ -534,6 +533,7 @@ export class FileSelectData {
   }
 
   async replaceFile(file) {
+    this._cLog.before('replaceFile', { local: { file }, _this: ['_file', '_newFile', '_replaceCount'] });
     if (file instanceof File === false) {
       throw new Error(
         'FileSelectFileData.replaceFile expects only argument to '
@@ -546,13 +546,18 @@ export class FileSelectData {
       this._file = file;
       this._replaceCount += 1;
 
-      this._setFileMeta(file, true);
+      this._setFileMeta(file, true, true);
 
-      await this._setImageMeta(true);
+      this._initImage();
+
       this._dispatch('replaced', this._id);
+
+      this._cLog.after('replaceFile', { _this: ['_file', '_newFile', '_replaceCount'] });
 
       return true;
     }
+
+    this._cLog.after('replaceFile', { _this: ['_file', '_newFile', '_replaceCount'] });
 
     return false;
   }

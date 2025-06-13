@@ -32,7 +32,8 @@
         v-on:move="moveFile" />
     </SimpleCarousel>
 
-    <div v-if="showErrors === true">
+    <div 
+      v-if="showErrors === true || dupcliateError === true">
       <AlertBlock
         v-if="fileList.tooBig() === true"
         :body="fileList.getMessage('tooBigTotal')"
@@ -49,6 +50,11 @@
         v-if="badFile.includes('invalid')"
         :body="fileList.getMessage('invalidType')"
         type="error" />
+      <AlertBlock
+        v-if="dupcliateError === null"
+        :body="fileList.getDuplicateMsg(duplicateFiles)"
+        icon="warning"
+        type="warning" />
     </div>
 
     <!-- START SLOT: error -->
@@ -82,17 +88,19 @@ import {
   onBeforeUnmount,
   onUpdated,
   ref,
+  watch,
 } from 'vue';
-import { getEpre } from '../../../utils/general-utils';
+import { FileSelectList } from '../logic/FileSelectList.class';
 import AlertBlock from '../../AlertBlock.vue';
 import FileSelectUiListItem from './FileSelectUiListItem.vue';
 import FileSelectUiInput from './FileSelectUiInput.vue';
 import SimpleCarousel from '../../SimpleCarousel.vue';
+import ConsoleLogger from '../../../../utils/ConsoleLogger.class';
 
 // ------------------------------------------------------------------
 // START: Vue utils
 
-const componentName = 'FileSelectUiFileList';
+const componentName = '<file-Select-ui-file-list>';
 const emit = defineEmits(['upload', 'cancel']);
 
 //  END:  Vue utils
@@ -113,13 +121,16 @@ const props = defineProps({
 // START: Local state
 
 const files = ref([]);
-const ePre = ref(null);
-const init = ref(false);
+const _cLog = ref(null);
+const _doLog = true;
+const doInit = ref(true);
 const focusIndex = ref(0);
 const badFile = ref([]);
 const total = ref(0);
 const stillAdding = ref(0);
 const nextFocus = ref(0);
+const duplicateFiles = ref([]);
+const processingCount = ref(0);
 
 //  END:  Local state
 // ------------------------------------------------------------------
@@ -134,7 +145,23 @@ const showErrors = computed(() => (props.fileList !== null
 
 const inputID = computed(() => `${props.id}--add-files`);
 
-const canUpload = computed(() => (total.value > 0 && badFile.value.length === 0));
+const isFileList = computed(
+  () => (props.fileList !== null && props.fileList instanceof FileSelectList),
+);
+
+const submitClass = computed(() => {
+  const tmp = (showErrors.value === true || processingCount.value > 0)
+    ? ' btn-forbidden'
+    : '';
+  return `btn-pri btn-md${tmp}`;
+});
+
+const canUpload = computed(
+  () => (total.value > 0 && badFile.value.length === 0
+    && processingCount.value === 0 && stillAdding.value === 0),
+);
+
+const dupcliateError = computed(() => (duplicateFiles.value.length > 0));
 
 //  END:  Computed state
 // ------------------------------------------------------------------
@@ -150,10 +177,23 @@ const resetFiles = () => {
   updateBadFiles();
 };
 
+const resetDuplicateFiles = () => {
+  duplicateFiles.value = [];
+};
+
+const updateFocusIndex = () => {
+  if (stillAdding.value === 0) {
+    focusIndex.value = (nextFocus.value >= files.value.length)
+      ? (files.value.length - 1)
+      : nextFocus.value;
+  }
+};
+
 const toBeAdded = (data) => {
   stillAdding.value = (data);
   nextFocus.value = total.value;
   focusIndex.value = total.value;
+  resetDuplicateFiles();
 };
 
 const deletedWatcher = () => {
@@ -162,6 +202,7 @@ const deletedWatcher = () => {
   if (focusIndex.value >= total.value) {
     focusIndex.value = total.value - 1;
   }
+  resetDuplicateFiles();
 };
 
 const addedWatcher = () => {
@@ -179,21 +220,28 @@ const notAddedWatcher = () => {
   files.value = props.fileList.getAllFilesRaw();
 
   updateBadFiles();
+  updateFocusIndex();
+};
 
-  if (stillAdding.value === 0) {
-    focusIndex.value = nextFocus.value;
+const duplicateWatcher = (name) => {
+  notAddedWatcher();
+
+  if (duplicateFiles.value.includes(name) === false) {
+    duplicateFiles.value.push(name);
   }
 };
 
 const processCountWatcher = (data) => {
+  processingCount.value = data;
+
   if (data === 0) {
     files.value = props.fileList.getAllFilesRaw();
   }
 };
 
-const setWatcher = () => {
-  if (init.value === false && props.fileList !== null) {
-    init.value = true;
+const setWatchers = () => {
+  if (doInit.value === true && isFileList.value === true) {
+    doInit.value = false;
 
     const actions = [
       'completed',
@@ -204,22 +252,47 @@ const setWatcher = () => {
     ];
 
     props.fileList.addWatcher(actions, props.id, resetFiles);
-    props.fileList.addWatcher('toBeAdded', props.id, toBeAdded);
     props.fileList.addWatcher('added', props.id, addedWatcher);
     props.fileList.addWatcher('deleted', props.id, deletedWatcher);
+    props.fileList.addWatcher('duplicate', props.id, duplicateWatcher);
     props.fileList.addWatcher('notadded', props.id, notAddedWatcher);
-    props.fileList.addWatcher('processCount', props.id, processCountWatcher);
+    props.fileList.addWatcher('procesCountChange', props.id, processCountWatcher);
+    props.fileList.addWatcher('toBeAdded', props.id, toBeAdded);
   }
+};
+
+const getWhy = () => {
+  if (showErrors.value === true) {
+    return 'there are errors';
+  }
+
+  if (total.value === 0) {
+    return 'there are no files to upload';
+  }
+
+  if (badFile.value.length > 0) {
+    return 'there are bad files';
+  }
+
+  if (processingCount.value > 0) {
+    return 'images are still being processed';
+  }
+
+  return 'UNKNOWN';
 };
 
 //  END:  Helper methods
 // ------------------------------------------------------------------
 // START: Event handler methods
 
-const handleUpload = () => {
-  if (showErrors.value === false && canUpload.value === true) {
+const handleUpload = (event) => {
+  _cLog.value.before('handleUpload', { local: { event, busy: props.fileList.isBusy() }, refs: ['showErrors', 'canUpload', 'stillAdding', 'total', 'processingCount'] });
+
+  if (showErrors.value === false && canUpload.value === true && props.fileList.isBusy() === false) {
     emit('upload');
+    console.groupEnd();
   } else {
+    _cLog.value.after('handleUpload', { warn: `Cannot upload at the moment because ${getWhy()}` });
     for (let a = 0; a < files.value.length; a += 1) {
       if (files.value[a].ok === false) {
         focusIndex.value = a;
@@ -245,25 +318,59 @@ const moveFile = ({ id, relPos }) => {
 const carouselFocus = (event) => {
   focusIndex.value = event;
   nextFocus.value = focusIndex.value;
+  resetDuplicateFiles();
 };
 
 //  END:  Event handler methods
 // ------------------------------------------------------------------
 // START: Watcher methods
 
+watch(
+  () => props.fileList,
+  () => {
+    doInit.value = true;
+    setWatchers();
+  },
+);
+
 //  END:  Watcher methods
 // ------------------------------------------------------------------
 // START: Lifecycle methods
 
 onBeforeMount(() => {
-  if (ePre.value === null) {
-    ePre.value = getEpre(componentName, props.id);
-    setWatcher();
+  if (doInit.value === true) {
+    if (_doLog === true && _cLog.value === null) {
+      _cLog.value = new ConsoleLogger(
+        componentName,
+        props.id,
+        {
+          props: { ...props },
+          refs: {
+            files,
+            focusIndex,
+            badFile,
+            total,
+            stillAdding,
+            nextFocus,
+            duplicateFiles,
+            processingCount,
+            showErrors,
+            inputID,
+            isFileList,
+            canUpload,
+            dupcliateError,
+          },
+        },
+        false,
+      );
+    }
+
+    setWatchers();
   }
 });
 
 onUpdated(() => {
-  setWatcher();
+  setWatchers();
 });
 
 onBeforeUnmount(() => {

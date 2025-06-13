@@ -1,4 +1,9 @@
 /**
+ * @typedef {import('../../../../../types/upload-button.d.ts').MimeType} MimeType;
+ * @typedef {import('../../../../../types/upload-button.d.ts').MimeTypeList} MimeTypeList;
+ */
+
+/**
  * @var {MimeType} jpeg Mime type info for JPEG files
  */
 const jpeg = {

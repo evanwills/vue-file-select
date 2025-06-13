@@ -13,179 +13,22 @@ import {
 import { ComponentCommunicator } from '../../../utils/ComponentCommunicator.class';
 import { isObj } from '../../../utils/data-utils';
 import { FileSelectData } from './FileSelectData.class';
+import { humanReadableList } from '../../../utils/general-utils';
 import ImageProcessor from './ImageProcessor.IBR.class';
+import ConsoleLogger from '../../../utils/ConsoleLogger.class';
 // import ImageProcessor from ./ImageProcessor.photon.class
 
 // ==================================================================
 // START: Local type definitions
 
+/* eslint-disable vue/max-len, max-len */
 /**
- * Holds basic info about a single file, plus the `File` itself and
- * possibly image metadata, if the file is an image
- *
- * @typedef FileDataItem
- * @type {object}
- *
- *
- * @property {string}  ext          File extention
- * @property {File}    fileData     File object that can be uploaded
- *                                  to the server
- * @property {boolean} invalid      Whether or not the file is a
- * @property {boolean} isImage      Whether or not the file is an
- *                                  image
- * @property {string}  lastModified ISO8601 Date time string for when
- *                                  the file was last modified
- * @property {Object|null} metadata Basic info for image files
- * @property {string}  mime         File mime type
- * @property {string}  name         Unique name for file
- * @property {string}  ogName       Original name of selected file
- * @property {boolean} ok           Whether or not there are issues
- *                                  with this file
- * @property {boolean} oversize     Whether or not the file exceeds
- *                                  the maximum file size allowed
- * @property {number}  position     Postion of the file within the
- *                                  list of files
- * @property {boolean} processing   Whether or not the file is
- *                                  currently being processed
- * @property {string}  size         File size in bytes
+ * @typedef {import('../../../../../types/upload-button.d.ts').FileDataItem} FileDataItem;
+ * @typedef {import('../../../../../types/upload-button.d.ts').Watcher} Watcher;
+ * @typedef {import('../../../../../types/upload-button.d.ts').FileSelectListConfigParam} FileSelectListConfigParam;
+ * @typedef {import('../../../../../types/upload-button.d.ts').FileSelectListInternalConfig} FileSelectListInternalConfig;
  */
-
-/**
- * `TRUE` if there are no more files yet to complete processing.
- * `FALSE` otherwise.
- *
- * The `allcompleted` event is dispatched every time processing a
- * single file is complete.
- *
- * @typedef AllCompleteEventData
- * @type {boolean}
- */
-
-/**
- * The `complete` event is dispatched every time processing a
- * single file is complete.
- *
- * @typedef CompleteEventData
- * @type {object}
- *
- * @property {string} name Name of the file that has completed
- *                         processing
- * @property {number} pos  Position of the file within the list of
- *                         files the user has selected
- */
-
-/**
- * The name of single file being processed.
- *
- * The `invalid` event is dispatched when processing a file has
- * completed AND that is not one of the types allowed
- *
- * @typedef InvalidEventData
- * @type {string}
- */
-
-/**
- * The `oversize` event is dispatched when a processing a file has
- * completed AND the file is larger than the maximum allowed for a
- * single file.
- *
- * @typedef OversizeEventData
- * @type {object}
- *
- * @property {string} name Name of the file that has completed
- *                         processing
- * @property {number} size The file size (in bytes) for this file
- * @property {number} max  The mximum size (in bytes) allowed for a
- *                         single file
- */
-
-/**
- * The number of files about to be processed.
- *
- * The `processCount` event is dispatched when
- * `FileSelectData.processFiles` is called
- *
- * @typedef ProcesscountEventData
- * @type {number}
- */
-
-/**
- * The name of single file being processed.
- *
- * The `processing` event is dispatched when
- * `FileSelectData.processSingleFile` is called
- *
- * @typedef ProcessingEventData
- * @type {string}
- */
-
-/**
- * The `toobig` event is dispatched when a processing a file has
- * completed AND the total size (in bytes) maximum total size allowed
- *
- * @typedef ToobigEventData
- * @type {object}
- *
- * @property {string} name Name of the file that has completed
- *                         processing
- * @property {number} size The total number of bytes for all the
- *                         files uploaded
- * @property {number} max  The maximum total number of bytes allowed
- */
-
-/**
- * The `toomany` event is dispatched when a processing a file has
- * completed AND the maximum number of files allowed has already
- * been reached.
- *
- * @typedef ToomanyEventData
- * @type {object}
- *
- * @property {string} name  Name of the file that has completed
- *                          processing
- * @property {number} count The number of files the user has selected
- * @property {number} max   Maximum number of files allowed
- */
-
-/**
- * A function that is called every time an event is dispatched and
- * does an action if the event is of a type it cares about.
- *
- * @typedef Watcher
- * @type {Function}
- *
- * @param {string} evenName Name of the event being dispatched
- * @param {
- *          AllCompleteEventData|
- *          CompleteEventData|
- *          InvalidEventData|
- *          ProcesscountEventData|
- *          ProcessingEventData|
- *          ToobigEventData|
- *          ToomanyEventData
- * } data Data associated with the event
- *
- * @returns {any|void}
- */
-
-/**
- * @typedef ProcessFilesReturn
- * @type {object}
- *
- * @property {FileDataItem[]} fileList All the files held by
- *                                FileSelectData
- * @property {boolean[]} newFiles
- */
-
-/**
- * @typedef FProcessFiles
- * @type {Function}
- *
- * @param {FileList} files List of files provided by
- *                         `<input type="file" />`
- *
- * @returns
- */
+/* eslint-enable vue/max-len, max-len */
 
 //  END:  Local type definitions
 // ==================================================================
@@ -196,15 +39,11 @@ import ImageProcessor from './ImageProcessor.IBR.class';
  *
  * @class FileSelectData
  *
- * @param {ImageProcessor|null} imgProcessor Object that can be used to
- *                                         manipulate images
- * @param {Watcher|null}      watcher      Function to be called to
- *                                         inform the client about
- *                                         things that happen while
- *                                         processing a file.
- * @param {Object|null}       config       Values to override the
- *                                         static (default) config
- *                                         values that control limits
+ * @param {HTMLCanvasElement|null} canvas Object that can be used to
+ *                      manipulate images
+ * @param {FileSelectListConfigParam} config Values to override the
+ *                      static (default) config values that control
+ *                      limits
  *
  * @method processFiles Process file(s) provided by
  *                      `<input type="file" />` and add them to the
@@ -321,7 +160,11 @@ export class FileSelectList {
   // ----------------------------------------------------------------
   // START: Define instance properties
 
+  _addingCount = 0;
+
   _badFiles = [];
+
+  _busy = false;
 
   _canResize = true;
 
@@ -335,7 +178,7 @@ export class FileSelectList {
    * * `omitInvalid`
    * * `noResize`
    *
-   * @property {object}
+   * @property {FileSelectListInternalConfig}
    */
   _config;
 
@@ -367,6 +210,8 @@ export class FileSelectList {
    */
   _log = [];
 
+  _cLog = null;
+
   /**
    * The number of files still being processed
    *
@@ -381,6 +226,54 @@ export class FileSelectList {
   _totalSize;
 
   //  END:  Define instance properties
+  // ----------------------------------------------------------------
+  // START: Constructor method
+
+  /**
+   *
+   * @param {HTMLCanvasElement|null}    canvas HTML Canvas element (if available)
+   *                                           NOTE: Without a canvas
+   *                                                 element, it is not possible
+   *                                                 to resize images.
+   * @param {FileSelectListConfigParam} config Config settings to override default
+   *                                           FileSelectList config settings
+   */
+  constructor(canvas = null, config = null, comms = null) {
+    this._comms = (comms !== null && comms instanceof ComponentCommunicator)
+      ? comms
+      : new ComponentCommunicator(config.logging);
+    this._fileList = [];
+    this._totalSize = 0;
+    this._processingCount = 0;
+    this._addingCount = 0;
+    this._log = [];
+    this._badFiles = [];
+
+    const { logging, noResize, ...tmpConfig } = config;
+
+    try {
+      this._setConfig(tmpConfig);
+    } catch (e) {
+      throw Error(e.message);
+    }
+
+    this._canResize = (this.imagesAllowed() === true && noResize !== true);
+
+    if (this._canResize === true) {
+      this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
+      this._imgProcessor.forceInit();
+    } else if (noResize === true) {
+      this._comms.dispatch('noResize', true, 'FileSelectList');
+    }
+    this._cLog = new ConsoleLogger('FileSelectList', '', { _this: this });
+
+    if (this._comms.watcherExists('imageProcessingStart', 'FileSelectList') === false) {
+      this._comms.addWatcher('imageProcessingStart', 'FileSelectList', this._handleProcesStart());
+      this._comms.addWatcher('imageProcessingEnd', 'FileSelectList', this._handleProcesEnd());
+    }
+  }
+
+  //  END:  Constructor methods
   // ----------------------------------------------------------------
   // START: Static getter & setter methods
 
@@ -552,37 +445,31 @@ export class FileSelectList {
 
   //  END:  Static getter & setter methods
   // ----------------------------------------------------------------
-  // START: Constructor method
+  // START: private methods
 
-  constructor(canvas = null, config = null) {
-    this._comms = new ComponentCommunicator(config.logging);
-    this._fileList = [];
-    this._totalSize = 0;
-    this._processingCount = 0;
-    this._log = [];
-    this._badFiles = [];
+  _handleProcesStart() {
+    const context = this;
+    return () => {
+      context._cLog.before('_handleProcesStart', { _this: ['_processingCount', '_addingCount'] });
 
-    const { logging, noResize, ...tmpConfig } = config;
+      context._processingCount += 1;
+      context._dispatch('procesCountChange', context._processingCount);
 
-    try {
-      this._setConfig(tmpConfig);
-    } catch (e) {
-      throw Error(e.message);
-    }
-
-    this._canResize = (this.imagesAllowed() === true && noResize !== true);
-
-    if (this._canResize === true) {
-      this._imgProcessor = new ImageProcessor(canvas, this._config, this._comms);
-      this._imgProcessor.forceInit();
-    } else if (noResize === true) {
-      this._comms.dispatch('noResize', true, 'FileSelectList');
-    }
+      context._cLog.after('_handleProcesStart', { _this: ['_processingCount', '_addingCount'] });
+    };
   }
 
-  //  END:  Constructor methods
-  // ----------------------------------------------------------------
-  // START: private methods
+  _handleProcesEnd() {
+    const context = this;
+    return () => {
+      context._cLog.before('_handleProcesEnd', { _this: ['_processingCount'] });
+      context._processingCount -= 1;
+      context._dispatch('procesCountChange', context._processingCount);
+
+      context._dispatch('allcomplete', (this._processingCount === 0));
+      context._cLog.after('_handleProcesEnd', { _this: ['_processingCount'] });
+    };
+  }
 
   /**
    * Add the ID of a bad file if it's not already in the list.
@@ -609,6 +496,10 @@ export class FileSelectList {
     this._badFiles = this._badFiles.filter((str) => str !== id);
   }
 
+  _isDuplicate(fileData) {
+    return (typeof this._fileList.find((item) => item.isSame(fileData)) !== 'undefined');
+  }
+
   /**
    * Add a file to the list of files to upload (if it's OK to do so)
    *
@@ -629,7 +520,7 @@ export class FileSelectList {
       return false;
     }
 
-    if (typeof this._fileList.find((item) => item.isMatch(fileData.id, fileData.name)) !== 'undefined') {
+    if (this._isDuplicate(fileData) === true) {
       return null;
     }
 
@@ -642,6 +533,7 @@ export class FileSelectList {
       fileData.position = this._fileList.length; // eslint-disable-line no-param-reassign
 
       this._fileList.push(fileData);
+
       if (fileData.ok === false) {
         this._addBadFile(fileData.id);
       }
@@ -720,9 +612,9 @@ export class FileSelectList {
 
     this._checkTooMany(fileData.name);
 
-    this._calculateTotal(fileData);
+    this._calculateTotal();
 
-    this._dispatch('allcomplete', (this._processingCount === 0));
+    this._dispatch('allcomplete', (this._processingCount === 0 && this._addingCount === 0));
   }
 
   _append(message) {
@@ -754,24 +646,40 @@ export class FileSelectList {
     }
   }
 
-  async _handleAdding(fileData) {
-    this._addFileToList(fileData);
-
-    this._processSingleFileInner(fileData);
+  _handleDuplicate(fileData) {
     this._dispatch(
-      'added',
-      {
-        cannotadd: false,
-        id: fileData.id,
-        invalid: fileData.invalid,
-        isImage: fileData.isImage,
-        name: fileData.name,
-        ogName: fileData.ogName,
-        oversize: fileData.tooHeavy,
-      },
+      'duplicate',
+      fileData.ogName,
     );
+  }
 
-    this._calculateTotal(fileData);
+  async _handleAdding(fileData) {
+    this._cLog.before('_handleAdding', { local: { fileData }, _this: ['_addingCount'] });
+    const action = this._addFileToList(fileData);
+
+    if (action === true) {
+      this._processSingleFileInner(fileData);
+      this._dispatch(
+        'added',
+        {
+          cannotadd: false,
+          id: fileData.id,
+          invalid: fileData.invalid,
+          isImage: fileData.isImage,
+          name: fileData.name,
+          ogName: fileData.ogName,
+          oversize: fileData.tooHeavy,
+          duplicate: false,
+        },
+      );
+
+      this._calculateTotal();
+    } else if (action === null) {
+      // file is duplicate;
+      this._handleDuplicate(fileData);
+    }
+    this._addingCount -= 1;
+    this._cLog.after('_handleAdding', { _this: ['_addingCount'] });
   }
 
   _handleNotOK(file, fileData) {
@@ -782,6 +690,7 @@ export class FileSelectList {
         cannotadd: true,
         oversize: fileData.tooHeavy,
         invalid: fileData.invalid,
+        duplicate: false,
       },
     );
   }
@@ -796,6 +705,7 @@ export class FileSelectList {
         tooMany: this.tooMany(),
         size: this._totalSize,
         count: this._fileList.length,
+        duplicate: false,
       },
     );
   }
@@ -825,10 +735,12 @@ export class FileSelectList {
       }
 
       this._handleNotOK(file, fileData);
+      this._addingCount -= 1;
       return false;
     }
 
     this._handleOverSize(file);
+    this._addingCount -= 1;
     return false;
   }
 
@@ -843,6 +755,9 @@ export class FileSelectList {
       maxTotalSize: FileSelectList.#maxTotalSize,
       omitInvalid: FileSelectList.#omitInvalid,
       messages: {
+        duplicate: 'We do not allow multiple copies of the same '
+          + 'file to be uploaded. The duplicate of [[FILE_NAME]] '
+          + 'was discarded.',
         noResize: 'This browser does not support image resizing. '
           + 'Please use a supported browser like Chrome or Firefox.',
         tooBigFile: 'File size ([[FILE_SIZE]]) exceeds allowable '
@@ -850,7 +765,7 @@ export class FileSelectList {
         tooBigTotal: 'Total size of upload exceeds allowable limit.',
         tooMany: 'Maximum number of files has been exceeded.',
         invalidType: 'We detected an invalid file type. '
-        + 'Valid file types are: [[TYPE_LIST]]',
+          + 'Valid file types are: [[TYPE_LIST]]',
       },
     };
 
@@ -865,95 +780,6 @@ export class FileSelectList {
   //  END:  private methods
   // ----------------------------------------------------------------
   // START: Public getter methods
-
-  /**
-   * Append all good files to FormData object so they can be sent
-   * back to the server.
-   *
-   * > __Note:__ This appends only the File objects to the form, all
-   * >           the metadata associated with the file is omitted
-   * >           from the form.
-   *
-   * @param {FormData} form A DOM form object to which files can be
-   *                        appended.
-   *
-   * @returns {FormData} Same FormData object with uploadable files
-   *                     appended.
-   */
-  async appendFilesToForm(form) {
-    const promises = [];
-    const tmp = this.getGoodFiles();
-
-    for (const fileData of tmp) {
-      promises.push(
-        Promise.resolve(form.append('File', fileData._file, fileData._name)),
-      );
-    }
-
-    await Promise.all(promises);
-
-    return form;
-  }
-
-  /**
-   * Get message based on supplied type
-   *
-   * @param {string} type Type of message to return
-   *
-   * @throws {Error} If message type could not be found
-   */
-  getMessage(type, fileID = '') {
-    if (typeof type !== 'string' || type.trim() === '') {
-      throw new Error(
-        'FileSelectList.getMessage() expects only parameter '
-        + 'type to be a non-empty string',
-      );
-    }
-
-    if (typeof this._config.messages[type] !== 'string') {
-      throw new Error(
-        'FileSelectList.getMessage() expects only parameter '
-        + 'type to be a string matching one of the following types: '
-        ,
-      );
-    }
-
-    let output = this._config.messages[type];
-
-    let bits = {
-      FILE_COUNT: this._fileList.length,
-      MAX_COUNT: this._config.maxFileCount,
-      MAX_SINGLE: this._config.maxSingleSize,
-      MAX_TOTAL: this._config.maxTotalSize,
-      TOTAL_SIZE: this._totalSize,
-    };
-
-    const tmp = this.getFile(fileID); // eslint-disable-line no-case-declarations
-
-    if (tmp !== null) {
-      bits = {
-        ...bits,
-        FILE_NAME: tmp.name,
-        FILE_SIZE: tmp.size,
-      };
-    }
-
-    switch (type) { // eslint-disable-line default-case
-      case 'tooBigFile':
-        output = enhanceMessage(output, bits, true);
-        break;
-
-      case 'tooMany':
-        output = enhanceMessage(output, bits);
-        break;
-
-      case 'tooBigTotal':
-        output = enhanceMessage(output, bits, true);
-        break;
-    }
-
-    return output;
-  }
 
   imagesAllowed() {
     return typeof this._config.allowedTypes.find((item) => (item.type === 'image')) !== 'undefined';
@@ -1148,6 +974,10 @@ export class FileSelectList {
    */
   hasGoodFiles() { return this.hasFiles(true); }
 
+  isBusy() {
+    return (this._busy === true || this._addingCount > 0 || this._processingCount > 0);
+  }
+
   /**
    * Whether or not images are still being processed
    *
@@ -1261,6 +1091,37 @@ export class FileSelectList {
       }
     }
   }
+
+  /**
+   * Append all good files to FormData object so they can be sent
+   * back to the server.
+   *
+   * > __Note:__ This appends only the File objects to the form, all
+   * >           the metadata associated with the file is omitted
+   * >           from the form.
+   *
+   * @param {FormData} form A DOM form object to which files can be
+   *                        appended.
+   *
+   * @returns {FormData} Same FormData object with uploadable files
+   *                     appended.
+   */
+  async appendFilesToForm(form) {
+    const promises = [];
+    const tmp = this.getGoodFiles();
+
+    for (const fileData of tmp) {
+      promises.push(
+        Promise.resolve(form.append('File', fileData._file, fileData._name)),
+      );
+    }
+
+    await Promise.all(promises);
+
+    return form;
+  }
+
+  busyStatus() { return this._busy; }
 
   /**
    * Remove a dispatcher function
@@ -1424,6 +1285,72 @@ export class FileSelectList {
     return form;
   }
 
+  getDuplicateMsg(files) {
+    const FILE_NAME = humanReadableList(files);
+
+    return this._config.messages.duplicate.replace('[[FILE_NAME]]', FILE_NAME);
+  }
+
+  /**
+   * Get message based on supplied type
+   *
+   * @param {string} type Type of message to return
+   *
+   * @throws {Error} If message type could not be found
+   */
+  getMessage(type, fileID = '') {
+    if (typeof type !== 'string' || type.trim() === '') {
+      throw new Error(
+        'FileSelectList.getMessage() expects only parameter '
+        + 'type to be a non-empty string',
+      );
+    }
+
+    if (typeof this._config.messages[type] !== 'string') {
+      throw new Error(
+        'FileSelectList.getMessage() expects only parameter '
+        + 'type to be a string matching one of the following types: '
+        ,
+      );
+    }
+
+    let output = this._config.messages[type];
+
+    let bits = {
+      FILE_COUNT: this._fileList.length,
+      MAX_COUNT: this._config.maxFileCount,
+      MAX_SINGLE: this._config.maxSingleSize,
+      MAX_TOTAL: this._config.maxTotalSize,
+      TOTAL_SIZE: this._totalSize,
+    };
+
+    const tmp = this.getFile(fileID); // eslint-disable-line no-case-declarations
+
+    if (tmp !== null) {
+      bits = {
+        ...bits,
+        FILE_NAME: tmp.name,
+        FILE_SIZE: tmp.size,
+      };
+    }
+
+    switch (type) { // eslint-disable-line default-case
+      case 'tooBigFile':
+        output = enhanceMessage(output, bits, true);
+        break;
+
+      case 'tooMany':
+        output = enhanceMessage(output, bits);
+        break;
+
+      case 'tooBigTotal':
+        output = enhanceMessage(output, bits, true);
+        break;
+    }
+
+    return output;
+  }
+
   _moveFileInner(id, pos, relPos) {
     const max = this._fileList.length - 1;
     const from = pos;
@@ -1493,13 +1420,14 @@ export class FileSelectList {
   processFiles(files) {
     if ((files instanceof FileList) === false || files.length === 0) {
       throw new Error(
-        'FileSelectData.processFiles() expects only argument to be '
+        'FileSelectList.processFiles() expects only argument to be '
         + 'an instance of FileList containing at least one file',
       );
     }
 
     const c = this._fileList.length;
     const newFiles = [];
+    this._addingCount = files.length;
 
     this._dispatch('toBeAdded', files.length);
 
@@ -1508,6 +1436,7 @@ export class FileSelectList {
     }
 
     const diff = (this._fileList.length - c);
+    this._busy = false;
 
     return {
       ...this.getStatus(),
@@ -1519,13 +1448,19 @@ export class FileSelectList {
   }
 
   replaceFile(id, file) {
+    this._cLog.only('replaceFile', { local: { id, file } });
     const tmp = this.getFile(id);
+
+    this._addingCount = 1;
 
     if (tmp !== null) {
       tmp.replaceFile(file);
 
       this._processSingleFileInner(tmp);
       this._addBadFile(id);
+
+      this._addingCount -= 1;
+      this._busy = false;
 
       return true;
     }
@@ -1534,6 +1469,14 @@ export class FileSelectList {
       `Could not replace file matching ID: "${id}" (name: `
       + `"${file.name})" because original file could not be found`,
     );
+  }
+
+  setBusy() {
+    this._busy = true;
+  }
+
+  notBusy() {
+    this._busy = false;
   }
 
   //  END:  General public methods

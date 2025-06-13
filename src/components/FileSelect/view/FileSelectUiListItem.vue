@@ -165,10 +165,19 @@ const btnWrapClass = computed(() => {
 const canMoveUp = computed(() => (props.pos > 0));
 const canMoveDown = computed(() => ((props.pos + 1) < props.total));
 
-const fileName = computed(() => props.name.replace(/[^a-z0-9_.-]+/ig, '')
-  .substring(0, 128).replace(/(?=\.)/g, '<wbr />'));
+const fileName = computed(() => {
+  let pre = '';
+  let post = '';
+  const output = props.name.replace(/[^a-z0-9_.-]+/ig, '')
+    .substring(0, 128).replace(/(?=\.)/g, '<wbr />');
 
-const fileNameClass = computed(() => '');
+  if (props.ok === false) {
+    pre = 'Invalid file: ';
+    post = '<br /><span class="underline">Delete</span>';
+  }
+
+  return pre + output + post;
+});
 
 const infoWrapClass = computed(() => '');
 

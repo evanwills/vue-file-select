@@ -72,7 +72,7 @@ const file = ref(null);
 const src = ref('');
 const fileName = ref('');
 const fileID = ref('');
-const watcherSet = ref(false);
+const doInit = ref(false);
 const isProcessing = ref(true);
 
 const size = ref('unknown');
@@ -146,9 +146,9 @@ const imageMetaSetWatcher = (data) => {
   }
 };
 
-const setWatcher = () => {
-  if (isFileList.value === true && watcherSet.value === false) {
-    watcherSet.value = true;
+const setWatchers = () => {
+  if (isFileList.value === true && doInit.value === true) {
+    doInit.value = false;
 
     props.fileList.addWatcher('imageprocessingend', props.id, endProcessingImageWatcher);
     props.fileList.addWatcher('imageMetaSet', props.id, imageMetaSetWatcher);
@@ -164,7 +164,7 @@ const handleUse = () => { emit('use', true); };
 
 //  END:  Event handler methods
 // ------------------------------------------------------------------
-// START: watcherSet methods
+// START: watcher methods
 
 watch(
   () => props.fileId,
@@ -179,7 +179,7 @@ watch(
   () => props.fileList,
   async (newList, oldList) => {
     if (newList !== oldList) {
-      setWatcher();
+      setWatchers();
 
       if (file.value === null) {
         setFile(props.fileId);
@@ -188,7 +188,15 @@ watch(
   },
 );
 
-//  END:  watcherSet methods
+watch(
+  () => props.fileList,
+  () => {
+    doInit.value = true;
+    setWatchers();
+  },
+);
+
+//  END:  watcher methods
 // ------------------------------------------------------------------
 // START: Lifecycle methods
 
@@ -198,7 +206,7 @@ onBeforeMount(() => {
   }
 
   if (props.fileList !== null) {
-    setWatcher();
+    setWatchers();
   }
 });
 
